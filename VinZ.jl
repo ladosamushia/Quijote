@@ -87,9 +87,9 @@ function main()
     Z = Z[1:100:end]
     VX = VX[1:100:end]/100
     Vin_bin = get_vinz(size(X)[1], Z, Y, X, VX, 100.0, -25.0, 25.0, 1000.0)
-#    Vin_bin = sum(Vin_bin, dims=1)
-#    Vin_bin = reshape(Vin_bin, (100, 200))
-#    writedlm("VinZ.csv", Vin_bin)
+    Vin_bin = sum(Vin_bin, dims=1)
+    Vin_bin = reshape(Vin_bin, (100, 200))
+    writedlm("VinZ.csv", Vin_bin)
 end
-#
+
 #main()
