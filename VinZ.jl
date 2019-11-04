@@ -36,18 +36,23 @@ end
 
 #Vin_bin = zeros(Int32, 100, 100)
 
-function get_vinz(Ngal, X, Y, Z, VZ, distmax, VinZmin, VinZmax)
+function get_vinz(Ngal, X, Y, Z, VZ, distmax, VinZmin, VinZmax, L)
     Vin_bin = zeros(Int32, nthreads(), 100, 200)
-    @threads for i in 1:Ngal
+    for i in 1:3
         for j in i:Ngal
-            dist = floor(Int32, sqrt((X[i] - X[j])^2 + (Y[i] - Y[j])^2 + (Z[i] - Z[j])^2)) + 1
+            dx = abs(X[i] - X[j])
+            dy = abs(Y[i] - Y[j])
+            dz = abs(Z[i] - Z[j])
+            dist = sqrt(dx^2 + dy^2 + dz^2)
             if dist > distmax
                 continue
             end
-            VinZ = floor(Int32, (VZ[i] - VZ[j])*sign(Z[j] - Z[i])) + 1
+            dist = floor(Int32, dist) + 1
+            VinZ = (VZ[j] - VZ[i])*sign(Z[i] - Z[j])
             if VinZ > VinZmax || VinZ < VinZmin
                 continue
             end
+            VinZ = floor(Int32, VinZ*4.0) + 101
             Vin_bin[threadid(), dist, VinZ] += 1
         end
     end
@@ -61,11 +66,11 @@ function main()
     X = X[1:100:end]
     Y = Y[1:100:end]
     Z = Z[1:100:end]
-    VX = VX[1:100:end]
-    Vin_bin = get_vinz(size(X)[1], Z, Y, X, VX, 100, 1, 200)
+    VX = VX[1:100:end]/100
+    Vin_bin = get_vinz(size(X)[1], Z, Y, X, VX, 100.0, -25.0, 25.0, 1000.0)
 #    Vin_bin = sum(Vin_bin, dims=1)
 #    Vin_bin = reshape(Vin_bin, (100, 200))
-    writedlm("VinZ.csv", Vin_bin)
+#    writedlm("VinZ.csv", Vin_bin)
 end
-
-main()
+#
+#main()
