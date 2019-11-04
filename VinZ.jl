@@ -38,6 +38,7 @@ end
 
 function get_vinz(Ngal, X, Y, Z, VZ, distmax, VinZmin, VinZmax, L)
     Vin_bin = zeros(Int32, nthreads(), 100, 200)
+    println("master")
     for i in 1:3
         for j in i:Ngal
             dx = abs(X[i] - X[j])
