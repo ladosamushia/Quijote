@@ -7,10 +7,27 @@ function neighbouring_indeces(i, j, k, Nsub)
     return i_n
 end
 
-function tri_bin(x1, y1, z1, x2, y2, z2, x3, y3, z3, dr, Nbin, rmax)
-    r12 = sqrt((x1 - x2).^2 + (y1 - y2).^2 + (z1 - z2).^2)
-    r13 = sqrt((x1 - x3).^2 + (y1 - y3).^2 + (z1 - z3).^2)
-    r23 = sqrt((x2 - x3).^2 + (y2 - y3).^2 + (z2 - z3).^2)
+function tri_bin(xyzw1, xyzw2, xyzw3, dr, Nbin, rmax)
+    index_123 = Array{Array{Int, 3}}(undef)
+    for xyz_1 in xyzw1[1:3,:]
+        for xyz_2 in xyzw2[1:3,:]
+            r12 = sqrt(sum((xyz_1 - xyz_2).^2))
+            if r12 > rmax
+                continue
+            for xyz_3 in xyzw3[1:3,:]
+                r13 = sqrt(sum((xyz_1 - xyz_3).^2))
+                if r13 > rmax
+                    continue
+                r23 = sqrt(sum((xyz_2 - xyz_3).^2))
+                if r13 > rmax
+                    continue
+                index_123 = [ceil(Int, r12/dr), ceil(Int, r13/dr), ceil(Int, r23/dr)]
+            end
+        end
+    end
+    return index_123
+end
+
 end
 function test_triplet_counts()
 # Create random arrays
@@ -76,4 +93,3 @@ end
 end
 
 test_triplet_counts()
-
