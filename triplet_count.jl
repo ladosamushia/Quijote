@@ -1,5 +1,15 @@
+"""
+neighbouring_indeces(i, j, k, Nsub)
+
+return indeces of all neighbouring blocks (27 in 3D, including the block itself) for the block (i, j, k).
+Nsub is the total number of blocks in each direction.
+
+Function must wrap-around (periodic boundary conditions).
+"""
 function neighbouring_indeces(i, j, k, Nsub)
-    i_n = reshape(collect.(Iterators.product(i-1:i+1, j-1:j+1, k-1:k+1)), (1, 27))
+    # All neighbours + itself
+    i_n = reshape(collect.(Iterators.product(i-1:i+1, j-1:j+1, k-1:k+1)), 27)
+    # Periodic boundary conditions
     for index in i_n
         index[index .== 0] .= Nsub
         index[index .== Nsub + 1] .= 1
@@ -7,89 +17,83 @@ function neighbouring_indeces(i, j, k, Nsub)
     return i_n
 end
 
-function tri_bin(xyzw1, xyzw2, xyzw3, dr, Nbin, rmax)
-    index_123 = Array{Array{Int, 3}}(undef)
-    for xyz_1 in xyzw1[1:3,:]
-        for xyz_2 in xyzw2[1:3,:]
-            r12 = sqrt(sum((xyz_1 - xyz_2).^2))
+"""
+tri_bin(xyzw1, xyzw2, xyzw3, dr, rmax, counts)
+
+bin distances between particles in three arrays and incriment histogram in counts.
+dr - bin width, rmax - maximum separation.
+xyzw - an array of x, y, z, and weight.
+"""
+function tri_bin(xyzw1, xyzw2, xyzw3, dr, rmax, counts)
+    for i1 in 1:length(xyzw1)
+            for i2 in 1:length(xyzw2)
+                r12 = sqrt(sum((xyzw1[i1][1:3] - xyzw2[i2][1:3]).^2))
             if r12 > rmax
                 continue
-            for xyz_3 in xyzw3[1:3,:]
-                r13 = sqrt(sum((xyz_1 - xyz_3).^2))
+            end
+            for i3 in 1:length(xyzw3)
+                r13 = sqrt(sum((xyzw1[i1][1:3] - xyzw3[i3][1:3]).^2))
                 if r13 > rmax
                     continue
-                r23 = sqrt(sum((xyz_2 - xyz_3).^2))
+                end
+                r23 = sqrt(sum((xyzw2[i2][1:3] - xyzw3[i3][1:3]).^2))
                 if r13 > rmax
                     continue
-                index_123 = [ceil(Int, r12/dr), ceil(Int, r13/dr), ceil(Int, r23/dr)]
+                end
+                index = [ceil(Int, r12/dr), ceil(Int, r13/dr), ceil(Int, r23/dr)]
+                counts[index[1],index[2],index[3]] += xyzw1[i1][4]*xyzw2[i2][4]*xyzw3[i3][4]
             end
         end
     end
-    return index_123
+    return nothing
 end
 
-end
-function test_triplet_counts()
-# Create random arrays
-Ngal = 10000
-Lsurvey = 1000
-xyzw = rand(4, Ngal)
-xyzw[1:3,:] *= Lsurvey
+"""
+cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
 
-# Sub-Volumes
-Lsub = 250
-Nsub = ceil(Int, Lsurvey/Lsub)
-
-x_cube = Array{Array{Float32}}(undef, Nsub, Nsub, Nsub)
-y_cube = Array{Array{Float32}}(undef, Nsub, Nsub, Nsub)
-z_cube = Array{Array{Float32}}(undef, Nsub, Nsub, Nsub)
-w_cube = Array{Array{Float32}}(undef, Nsub, Nsub, Nsub)
-
-i_xyz = ceil.(Int, xyzw[1:3,:]/Lsub)
-
-for i = 1:Nsub, j = 1:Nsub, k = 1:Nsub
-    x_cube[i, j, k] = [0,]
-    y_cube[i, j, k] = [0,]
-    z_cube[i, j, k] = [0,]
-    w_cube[i, j, k] = [0,]
-end
-
-for i = 1:Ngal
-    push!(x_cube[i_xyz[i]], xyzw[1,i])
-    push!(y_cube[i_xyz[i]], xyzw[2,i])
-    push!(z_cube[i_xyz[i]], xyzw[3,i])
-    push!(w_cube[i_xyz[i]], xyzw[4,i])
-end
-
-# Triplet count
-for i1 = 1:Nsub, j1 = 1:Nsub, k1 = 1:Nsub
-    x1 = x_cube[i1, j1, k1]
-    y1 = y_cube[i1, j1, k1]
-    z1 = z_cube[i1, j1, k1]
-    w1 = w_cube[i1, j1, k1]
-    i_neighbour = neighbouring_indeces(i1, j1, k1, Nsub)
-    for ijk2 in Iterators.product(i_neighbour, i_neighbour)
-        x2 = x_cube[ijk2[1][1], ijk2[1][2], ijk2[1][3]]
-        y2 = y_cube[ijk2[1][1], ijk2[1][2], ijk2[1][3]]
-        z2 = z_cube[ijk2[1][1], ijk2[1][2], ijk2[1][3]]
-        w2 = w_cube[ijk2[1][1], ijk2[1][2], ijk2[1][3]]
-        x3 = x_cube[ijk2[2][1], ijk2[2][2], ijk2[2][3]]
-        y3 = y_cube[ijk2[2][1], ijk2[2][2], ijk2[2][3]]
-        z3 = z_cube[ijk2[2][1], ijk2[2][2], ijk2[2][3]]
-        w3 = w_cube[ijk2[2][1], ijk2[2][2], ijk2[2][3]]
-        for ii1 = 1:length(x1)
-            dx12 = x1[ii1] .- x2
-            dy12 = y1[ii1] .- y2
-            dz12 = z1[ii1] .- z2
-            dx13 = x1[ii1] .- x3
-            dy13 = y1[ii1] .- y3
-            dz13 = z1[ii1] .- z3
-            r12 = sqrt.(dx12.^2 + dy12.^2 + dz12.^2)
-            r23 = sqrt.(dx13.^2 + dy13.^2 + dz13.^2)
+Triple loop over all subcubes and their immediate neighbours
+"""
+function cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
+    for i1 = 1:Nsub, j1 = 1:Nsub, k1 = 1:Nsub
+        i_neighbour = neighbouring_indeces(i1, j1, k1, Nsub)
+        xyzw1 = xyzw_cube[i1, j1, k1]
+        for ijk2 in length(i_neighbour)
+            i2, j2, k2 = i_neighbour[ijk2]
+            xyzw2 = xyzw_cube[i2, j2, k2]
+            for ijk3 in ijk2:length(i_neighbour)
+                i3, j3, k3 = i_neighbour[ijk3]
+                xyzw3 = xyzw_cube[i3, j3, k3]
+                tri_bin(xyzw1, xyzw2, xyzw3, dr, rmax, counts)
+            end
         end
     end 
 end
 
-end
+function test_triplet_counts()
+    # Create random arrays
+    Ngal = 10
+    Lsurvey = 1000
+    xyzw = rand(4, Ngal)
+    xyzw[1:3,:] *= Lsurvey
 
-test_triplet_counts()
+    # Sub-Volumes
+    Lsub = 500
+    Nsub = ceil(Int, Lsurvey/Lsub)
+    println("Nsub ", Nsub)
+    # Binning
+    rmin = 0
+    rmax = 10
+    Nbin = 10
+    dr = (rmax - rmin)/Nbin
+
+    xyzw_cube = Array{Array{Array{Float64,1}}}(undef, Nsub, Nsub, Nsub)
+    i_xyz = ceil.(Int, xyzw[1:3,:]/Lsub)
+    for i = 1:Nsub, j = 1:Nsub, k = 1:Nsub
+        xyzw_cube[i, j, k] = [zeros(4),]
+    end
+    for i = 1:Ngal
+        push!(xyzw_cube[i_xyz[1,i],i_xyz[2,i],i_xyz[3,i]], xyzw[:,i])
+    end
+
+    # cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
+end
