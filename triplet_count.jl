@@ -37,12 +37,22 @@ xyzw - an array of x, y, z, and weight.
 function tri_bin(xyzw1, xyzw2, xyzw3, dr, rmax, counts)
     
     for i1 in 1:length(xyzw1)
-        for i2 in 1:length(xyzw2)
+        if xyzw1 == xyzw2
+            i2min = i1
+        else
+            i2min = 1
+        end
+        for i2 in i2min:length(xyzw2)
             r12 = sqrt(sum((xyzw1[i1][1:3] - xyzw2[i2][1:3]).^2))
             if r12 >= rmax || r12 == 0
                 continue
             end
-            for i3 in 1:length(xyzw3)
+            if xyzw2 == xyzw3
+                i3min = i2
+            else
+                i3min = 1
+            end
+            for i3 in i3min:length(xyzw3)
                 r13 = sqrt(sum((xyzw1[i1][1:3] - xyzw3[i3][1:3]).^2))
                 if r13 >= rmax || r13 == 0
                     continue
@@ -68,7 +78,10 @@ Triple loop over all subcubes and their immediate neighbours
 """
 function cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
 
-    index1 = collect(product(1:Nsub,1:Nsub,1:Nsub))
+    index1 = []
+    for i in 1:Nsub, j in i:Nsub, k in j:Nsub
+        push!(index1, [i, j, k])
+    end
     @threads for ijk1 in index1
         i1, j1, k1 = ijk1
         xyzw1 = xyzw_cube[i1, j1, k1]
@@ -143,4 +156,10 @@ function test_on_Patchy()
     Lsurvey = 3300
     triplet_counts(Ngal, Lsurvey, xyzw, 20, 0, 20, 20)
     return nothing
+end
+
+function three_pcf(DDD, DDR, DRR, RRR, Ngal, Nran)
+    alpha = RRR/DDD
+    tpcf = (alpha*alpha*alpha*DDD - 3*alpha*alpha*DDR + 3*alpha*DRR - RRR)./RRR
+    return tpcf
 end
