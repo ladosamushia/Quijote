@@ -10,10 +10,19 @@ function neighbouring_indeces(i, j, k, Nsub)
     # All neighbours + itself
     i_n = reshape(collect.(Iterators.product(i-1:i+1, j-1:j+1, k-1:k+1)), 27)
     # Periodic boundary conditions
-    for index in i_n
-        index[index .== 0] .= Nsub
-        index[index .== Nsub + 1] .= 1
+    for i in 1:27
+        for j in 1:3
+            if i_n[i][j] == 0
+                i_n[i][j] = Nsub
+            elseif i_n[i][j] == Nsub + 1
+                i_n[i][j] = 1
+            end
+        end
     end
+    # for index in i_n
+        # index[index .== 0] .= Nsub
+        # index[index .== Nsub + 1] .= 1
+    # end
     return i_n
 end
 
@@ -40,7 +49,7 @@ function tri_bin(xyzw1, xyzw2, xyzw3, dr, rmax, counts)
                 if r13 > rmax
                     continue
                 end
-                index = [ceil(Int, r12/dr), ceil(Int, r13/dr), ceil(Int, r23/dr)]
+                index = [ceil(Int, r12/dr)+1, ceil(Int, r13/dr)+1, ceil(Int, r23/dr)+1]
                 counts[index[1],index[2],index[3]] += xyzw1[i1][4]*xyzw2[i2][4]*xyzw3[i3][4]
             end
         end
@@ -71,13 +80,13 @@ end
 
 function test_triplet_counts()
     # Create random arrays
-    Ngal = 10
+    Ngal = 1000000
     Lsurvey = 1000
     xyzw = rand(4, Ngal)
     xyzw[1:3,:] *= Lsurvey
 
     # Sub-Volumes
-    Lsub = 500
+    Lsub = 20
     Nsub = ceil(Int, Lsurvey/Lsub)
     println("Nsub ", Nsub)
     # Binning
@@ -85,6 +94,7 @@ function test_triplet_counts()
     rmax = 10
     Nbin = 10
     dr = (rmax - rmin)/Nbin
+    counts = zeros(Float32, 20, 20, 20)
 
     xyzw_cube = Array{Array{Array{Float64,1}}}(undef, Nsub, Nsub, Nsub)
     i_xyz = ceil.(Int, xyzw[1:3,:]/Lsub)
@@ -95,5 +105,6 @@ function test_triplet_counts()
         push!(xyzw_cube[i_xyz[1,i],i_xyz[2,i],i_xyz[3,i]], xyzw[:,i])
     end
 
-    # cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
+    cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
+    println(counts)
 end
