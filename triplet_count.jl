@@ -19,10 +19,6 @@ function neighbouring_indeces(i, j, k, Nsub)
             end
         end
     end
-    # for index in i_n
-        # index[index .== 0] .= Nsub
-        # index[index .== Nsub + 1] .= 1
-    # end
     return i_n
 end
 
@@ -34,27 +30,29 @@ dr - bin width, rmax - maximum separation.
 xyzw - an array of x, y, z, and weight.
 """
 function tri_bin(xyzw1, xyzw2, xyzw3, dr, rmax, counts)
+    
     for i1 in 1:length(xyzw1)
             for i2 in 1:length(xyzw2)
                 r12 = sqrt(sum((xyzw1[i1][1:3] - xyzw2[i2][1:3]).^2))
-            if r12 > rmax
-                continue
-            end
-            for i3 in 1:length(xyzw3)
-                r13 = sqrt(sum((xyzw1[i1][1:3] - xyzw3[i3][1:3]).^2))
-                if r13 > rmax
+                if r12 >= rmax || r12 == 0
                     continue
                 end
-                r23 = sqrt(sum((xyzw2[i2][1:3] - xyzw3[i3][1:3]).^2))
-                if r13 > rmax
-                    continue
+                for i3 in 1:length(xyzw3)
+                    r13 = sqrt(sum((xyzw1[i1][1:3] - xyzw3[i3][1:3]).^2))
+                    if r13 >= rmax || r13 == 0
+                        continue
+                    end
+                    r23 = sqrt(sum((xyzw2[i2][1:3] - xyzw3[i3][1:3]).^2))
+                    if r23 >= rmax || r23 == 0
+                        continue
+                    end
+                    index = [ceil(Int, r12/dr), ceil(Int, r13/dr), ceil(Int, r23/dr)]
+                    counts[index[1],index[2],index[3]] += xyzw1[i1][4]*xyzw2[i2][4]*xyzw3[i3][4]
                 end
-                index = [ceil(Int, r12/dr)+1, ceil(Int, r13/dr)+1, ceil(Int, r23/dr)+1]
-                counts[index[1],index[2],index[3]] += xyzw1[i1][4]*xyzw2[i2][4]*xyzw3[i3][4]
             end
         end
-    end
     return nothing
+
 end
 
 """
@@ -63,6 +61,7 @@ cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
 Triple loop over all subcubes and their immediate neighbours
 """
 function cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
+
     for i1 = 1:Nsub, j1 = 1:Nsub, k1 = 1:Nsub
         i_neighbour = neighbouring_indeces(i1, j1, k1, Nsub)
         xyzw1 = xyzw_cube[i1, j1, k1]
@@ -76,26 +75,15 @@ function cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
             end
         end
     end 
+
 end
 
-function test_triplet_counts()
-    # Create random arrays
-    Ngal = 1000000
-    Lsurvey = 1000
-    xyzw = rand(4, Ngal)
-    xyzw[1:3,:] *= Lsurvey
+function triplet_counts(Ngal, Lsurvey, xyzw, Lsub, rmin, rmax, Nbin)
 
-    # Sub-Volumes
-    Lsub = 20
     Nsub = ceil(Int, Lsurvey/Lsub)
-    println("Nsub ", Nsub)
-    # Binning
-    rmin = 0
-    rmax = 10
-    Nbin = 10
     dr = (rmax - rmin)/Nbin
-    counts = zeros(Float32, 20, 20, 20)
-
+    counts = zeros(Float32, Nbin, Nbin, Nbin)
+    # Fill in the sub-cubes
     xyzw_cube = Array{Array{Array{Float64,1}}}(undef, Nsub, Nsub, Nsub)
     i_xyz = ceil.(Int, xyzw[1:3,:]/Lsub)
     for i = 1:Nsub, j = 1:Nsub, k = 1:Nsub
@@ -104,7 +92,39 @@ function test_triplet_counts()
     for i = 1:Ngal
         push!(xyzw_cube[i_xyz[1,i],i_xyz[2,i],i_xyz[3,i]], xyzw[:,i])
     end
-
+    # Count triplets
     cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
-    println(counts)
+
+    return counts
+
 end
+"""
+function test_triplet_counts()
+    # Create random arrays
+    Ngal = 1000000
+    Lsurvey = 1000
+    xyzw = rand(4, Ngal)
+    xyzw[1:3,:] *= Lsurvey
+    # Sub-Volumes
+    Lsub = 20
+    Nsub = ceil(Int, Lsurvey/Lsub)
+    println("Nsub ", Nsub)
+    # Binning
+    rmin = 0
+    rmax = 20
+    Nbin = 20
+    dr = (rmax - rmin)/Nbin
+    counts = zeros(Float32, Nbin, Nbin, Nbin)
+    # Fill in the sub-cubes
+    xyzw_cube = Array{Array{Array{Float64,1}}}(undef, Nsub, Nsub, Nsub)
+    i_xyz = ceil.(Int, xyzw[1:3,:]/Lsub)
+    for i = 1:Nsub, j = 1:Nsub, k = 1:Nsub
+        xyzw_cube[i, j, k] = [zeros(4),]
+    end
+    for i = 1:Ngal
+        push!(xyzw_cube[i_xyz[1,i],i_xyz[2,i],i_xyz[3,i]], xyzw[:,i])
+    end
+    # Count triplets
+    cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
+end
+"""
