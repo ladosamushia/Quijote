@@ -1,4 +1,5 @@
 using Base.Threads
+using Base.Iterators
 
 """
 neighbouring_indeces(i, j, k, Nsub)
@@ -12,8 +13,8 @@ function neighbouring_indeces(i, j, k, Nsub)
     # All neighbours + itself
     i_n = reshape(collect.(Iterators.product(i-1:i+1, j-1:j+1, k-1:k+1)), 27)
     # Periodic boundary conditions
-    for i in 1:27
-        for j in 1:3
+    for i = 1:27
+        for j = 1:3
             if i_n[i][j] == 0
                 i_n[i][j] = Nsub
             elseif i_n[i][j] == Nsub + 1
@@ -31,6 +32,7 @@ bin distances between particles in three arrays and incriment histogram in count
 dr - bin width, rmax - maximum separation.
 xyzw - an array of x, y, z, and weight.
 """
+
 function tri_bin(xyzw1, xyzw2, xyzw3, dr, rmax, counts)
     
     for i1 in 1:length(xyzw1)
@@ -65,9 +67,11 @@ Triple loop over all subcubes and their immediate neighbours
 """
 function cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
 
-   @threads for i1 = 1:Nsub, j1 = 1:Nsub, k1 = 1:Nsub
-        i_neighbour = neighbouring_indeces(i1, j1, k1, Nsub)
+    index1 = collect(product(1:Nsub,1:Nsub,1:Nsub))
+    @threads for ijk1 in index1
+        i1, j1, k1 = ijk1
         xyzw1 = xyzw_cube[i1, j1, k1]
+        i_neighbour = neighbouring_indeces(i1, j1, k1, Nsub)
         for ijk2 in length(i_neighbour)
             i2, j2, k2 = i_neighbour[ijk2]
             xyzw2 = xyzw_cube[i2, j2, k2]
@@ -103,43 +107,15 @@ function triplet_counts(Ngal, Lsurvey, xyzw, Lsub, rmin, rmax, Nbin)
     println("cube_triplets")
     cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
     counts = sum(counts, dims=1)
-    println(counts)
-    println(typeof(counts))
+    println(sum(counts))
+    println(size(counts))
     return counts
 
 end
 
-xyzw = rand(4, 10)
-xyzw[1:3,:] *= 1000
-triplet_counts(10, 1000, xyzw, 20, 0, 20, 20)
-
-"""
 function test_triplet_counts()
-    # Create random arrays
-    Ngal = 1000000
-    Lsurvey = 1000
-    xyzw = rand(4, Ngal)
-    xyzw[1:3,:] *= Lsurvey
-    # Sub-Volumes
-    Lsub = 20
-    Nsub = ceil(Int, Lsurvey/Lsub)
-    println("Nsub ", Nsub)
-    # Binning
-    rmin = 0
-    rmax = 20
-    Nbin = 20
-    dr = (rmax - rmin)/Nbin
-    counts = zeros(Float32, Nbin, Nbin, Nbin)
-    # Fill in the sub-cubes
-    xyzw_cube = Array{Array{Array{Float64,1}}}(undef, Nsub, Nsub, Nsub)
-    i_xyz = ceil.(Int, xyzw[1:3,:]/Lsub)
-    for i = 1:Nsub, j = 1:Nsub, k = 1:Nsub
-        xyzw_cube[i, j, k] = [zeros(4),]
-    end
-    for i = 1:Ngal
-        push!(xyzw_cube[i_xyz[1,i],i_xyz[2,i],i_xyz[3,i]], xyzw[:,i])
-    end
-    # Count triplets
-    cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
+    xyzw = rand(4, 1000000)
+    xyzw[1:3,:] *= 1000
+    triplet_counts(1000000, 1000, xyzw, 20, 0, 20, 20)
+    return nothing
 end
-"""
