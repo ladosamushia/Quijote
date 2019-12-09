@@ -39,7 +39,7 @@ function get_vinz(Ngal, X, Y, Z, VZ, distmax, VinZmin, VinZmax, L)
     dx::Float32 = 0.0
     dy::Float32 = 0.0
     dz::Float32 = 0.0
-    for i in 1:3
+    @threads for i in 1:Ngal
         for j in i:Ngal
             dx = abs(X[i] - X[j])
             if dx > L/2
@@ -63,12 +63,12 @@ function get_vinz(Ngal, X, Y, Z, VZ, distmax, VinZmin, VinZmax, L)
                 continue
             end
             dist = sqrt(dx^2 + dy^2 + dz^2)
-            if dist > distmax
+            if dist >= distmax
                 continue
             end
             dist_bin = floor(Int32, dist) + 1
             VinZ = (VZ[j] - VZ[i])*sign(Z[i] - Z[j])
-            if VinZ > VinZmax || VinZ < VinZmin
+            if VinZ >= VinZmax || VinZ <= VinZmin
                 continue
             end
             VinZ_bin = floor(Int32, VinZ*4.0) + 101
@@ -91,5 +91,3 @@ function main()
     Vin_bin = reshape(Vin_bin, (100, 200))
     writedlm("VinZ.csv", Vin_bin)
 end
-
-#main()
