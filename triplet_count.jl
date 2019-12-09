@@ -1,5 +1,6 @@
 using Base.Threads
 using Base.Iterators
+using DelimitedFiles
 
 """
 neighbouring_indeces(i, j, k, Nsub)
@@ -87,6 +88,7 @@ end
 
 function triplet_counts(Ngal, Lsurvey, xyzw, Lsub, rmin, rmax, Nbin)
 
+    println("Ngal ", Ngal)
     Nsub = ceil(Int, Lsurvey/Lsub)
     println(Nsub)
     dr = (rmax - rmin)/Nbin
@@ -96,18 +98,31 @@ function triplet_counts(Ngal, Lsurvey, xyzw, Lsub, rmin, rmax, Nbin)
     println(typeof(counts))
     # Fill in the sub-cubes
     xyzw_cube = Array{Array{Array{Float64,1}}}(undef, Nsub, Nsub, Nsub)
-    i_xyz = ceil.(Int, xyzw[1:3,:]/Lsub)
+    min_xyz = [minimum(xyzw[1,:]), minimum(xyzw[2,:]), minimum(xyzw[3,:])]
+    i_xyz = ceil.(Int, (xyzw[1:3,:] .- min_xyz)/Lsub)
+    for i in 1:Ngal
+        if i_xyz[1,i] == 0
+            i_xyz[1,i] = 1
+        end
+        if i_xyz[2,i] == 0
+            i_xyz[2,i] = 1
+        end
+        if i_xyz[3,i] == 0
+            i_xyz[3,i] = 1
+        end
+    end
     for i = 1:Nsub, j = 1:Nsub, k = 1:Nsub
         xyzw_cube[i, j, k] = [zeros(4),]
     end
     for i in 1:Ngal
         push!(xyzw_cube[i_xyz[1,i],i_xyz[2,i],i_xyz[3,i]], xyzw[:,i])
     end
+    # println(xyzw_cube)
     # Count triplets
     println("cube_triplets")
     cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
     counts = sum(counts, dims=1)
-    println(sum(counts))
+    println("sum", sum(counts))
     println(size(counts))
     return counts
 
@@ -117,5 +132,15 @@ function test_triplet_counts()
     xyzw = rand(4, 1000000)
     xyzw[1:3,:] *= 1000
     triplet_counts(1000000, 1000, xyzw, 20, 0, 20, 20)
+    return nothing
+end
+
+function test_on_Patchy()
+    patchy = readdlm("Patchy-Mocks-DR12NGC-COMPSAM_V6C_0001_xyzw.dat")
+    xyzw = patchy[:,1:4]
+    xyzw = transpose(xyzw)
+    Ngal = size(xyzw)[2]
+    Lsurvey = 3300
+    triplet_counts(Ngal, Lsurvey, xyzw, 20, 0, 20, 20)
     return nothing
 end
