@@ -78,25 +78,27 @@ Triple loop over all subcubes and their immediate neighbours
 """
 function cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
 
-    println("Nsub in ", Nsub)
-    index1 = []
-    for i in 1:Nsub, j in i:Nsub, k in j:Nsub
-        push!(index1, [i, j, k])
+    # All cubes
+    index = []
+    for i in 1:Nsub, j in 1:Nsub, k in 1:Nsub
+        push!(index, [i, j, k])
     end
-    println(index1)
-    @threads for ijk1 in index1
-        i1, j1, k1 = ijk1
-        xyzw1 = xyzw_cube[i1, j1, k1]
-        i_neighbour = neighbouring_indeces(i1, j1, k1, Nsub)
-        for ijk2 in length(i_neighbour)
-            i2, j2, k2 = i_neighbour[ijk2]
-            xyzw2 = xyzw_cube[i2, j2, k2]
-            for ijk3 in ijk2:length(i_neighbour)
-                i3, j3, k3 = i_neighbour[ijk3]
-                xyzw3 = xyzw_cube[i3, j3, k3]
-                tri_bin(xyzw1, xyzw2, xyzw3, dr, rmax, counts)
-            end
+    Ncubes = length(index)
+    # All unique cube triplets
+    tri_index = []
+    for i in 1:Ncubes, j in i:Ncubes, k in j:Ncubes
+        # Only keep the neighbours
+        if maximum(abs.(index[i] - index[j])) <= 1 && maximum(abs.(index[k] - index[j])) <=1 && maximum(abs.(index[i] - index[k])) <=1
+            push!(tri_index, [index[i], index[j], index[k]])
         end
+    end
+    
+    @threads for index_tri in tri_index
+        ijk1, ijk2, ijk3 = index_tri
+        xyzw1 = xyzw_cube[ijk1[1],ijk1[2],ijk1[3]]
+        xyzw2 = xyzw_cube[ijk2[1],ijk2[2],ijk2[3]]
+        xyzw3 = xyzw_cube[ijk3[1],ijk3[2],ijk3[3]]
+        tri_bin(xyzw1, xyzw2, xyzw3, dr, rmax, counts)
     end 
 
 end
