@@ -37,22 +37,22 @@ xyzw - an array of x, y, z, and weight.
 function tri_bin(xyzw1, xyzw2, xyzw3, dr, rmax, counts)
     
     for i1 in 1:length(xyzw1)
-        # if xyzw1 == xyzw2
-            # i2min = i1
-        # else
-            # i2min = 1
-        # end
-        for i2 in 1:length(xyzw2)
+        if xyzw1 == xyzw2
+            i2min = i1
+        else
+            i2min = 1
+        end
+        for i2 in i2min:length(xyzw2)
             r12 = sqrt(sum((xyzw1[i1][1:3] - xyzw2[i2][1:3]).^2))
             if r12 >= rmax || r12 == 0
                 continue
             end
-            # if xyzw2 == xyzw3
-                # i3min = i2
-            # else
-                # i3min = 1
-            # end
-            for i3 in 1:length(xyzw3)
+            if xyzw2 == xyzw3
+                i3min = i2
+            else
+                i3min = 1
+            end
+            for i3 in i3min:length(xyzw3)
                 r13 = sqrt(sum((xyzw1[i1][1:3] - xyzw3[i3][1:3]).^2))
                 if r13 >= rmax || r13 == 0
                     continue
@@ -78,28 +78,29 @@ Triple loop over all subcubes and their immediate neighbours
 """
 function cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
 
+    println("start cube_triplets")
     # All cubes
     index = []
     for i in 1:Nsub, j in 1:Nsub, k in 1:Nsub
         push!(index, [i, j, k])
     end
     Ncubes = length(index)
+    println("Ncubes ", Ncubes)
     # All unique cube triplets
-    tri_index = []
-    for i in 1:Ncubes, j in i:Ncubes, k in j:Ncubes
-        # Only keep the neighbours
-        if maximum(abs.(index[i] - index[j])) <= 1 && maximum(abs.(index[k] - index[j])) <=1 && maximum(abs.(index[i] - index[k])) <=1
-            push!(tri_index, [index[i], index[j], index[k]])
+    @threads for i in 1:Ncubes 
+        print(i, " ", threadid(), "*",)
+        for j in i:Ncubes 
+            for k in j:Ncubes
+                # Only keep the neighbours
+                if maximum(abs.(index[i] - index[j])) <= 1 && maximum(abs.(index[k] - index[j])) <=1 && maximum(abs.(index[i] - index[k])) <=1
+                    xyzw1 = xyzw_cube[index[i][1],index[i][2],index[i][3]]
+                    xyzw2 = xyzw_cube[index[j][1],index[j][2],index[j][3]]
+                    xyzw3 = xyzw_cube[index[k][1],index[k][2],index[k][3]]
+                    tri_bin(xyzw1, xyzw2, xyzw3, dr, rmax, counts)
+                end
+            end
         end
     end
-    
-    @threads for index_tri in tri_index
-        ijk1, ijk2, ijk3 = index_tri
-        xyzw1 = xyzw_cube[ijk1[1],ijk1[2],ijk1[3]]
-        xyzw2 = xyzw_cube[ijk2[1],ijk2[2],ijk2[3]]
-        xyzw3 = xyzw_cube[ijk3[1],ijk3[2],ijk3[3]]
-        tri_bin(xyzw1, xyzw2, xyzw3, dr, rmax, counts)
-    end 
 
 end
 
@@ -134,7 +135,7 @@ function triplet_counts(Ngal, Lsurvey, xyzw, Lsub, rmin, rmax, Nbin)
     for i in 1:Ngal
         push!(xyzw_cube[i_xyz[1,i],i_xyz[2,i],i_xyz[3,i]], xyzw[:,i])
     end
-    # println(xyzw_cube)
+    println(typeof(xyzw_cube))
     # Count triplets
     println("cube_triplets")
     cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
@@ -154,12 +155,13 @@ end
 
 function test_on_Patchy()
     patchy = readdlm("Patchy-Mocks-DR12NGC-COMPSAM_V6C_0001_xyzw.dat")
-    xyzw = patchy[:,1:4]
+    xyzw = patchy[1:100:end,1:4]
     xyzw[:,4] .= 1
     xyzw = transpose(xyzw)
     Ngal = size(xyzw)[2]
+    println("Ngal ", Ngal)
     Lsurvey = 3300
-    triplet_counts(Ngal, Lsurvey, xyzw, 400, 0, 20, 20)
+    triplet_counts(Ngal, Lsurvey, xyzw, 100, 0, 20, 20)
     return nothing
 end
 
@@ -168,3 +170,5 @@ function three_pcf(DDD, DDR, DRR, RRR, Ngal, Nran)
     tpcf = (alpha*alpha*alpha*DDD - 3*alpha*alpha*DDR + 3*alpha*DRR - RRR)./RRR
     return tpcf
 end
+
+test_on_Patchy()
