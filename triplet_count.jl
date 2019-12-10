@@ -88,7 +88,7 @@ function cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
     tri_index = []
     for i in 1:Ncubes, j in i:Ncubes, k in j:Ncubes
         # Only keep the neighbours
-        if maximum(abs.(index[i] - index[j])) <= 1 && maximum(abs.(index[k] - index[j])) && maximum(abs.(index[i] - index[k]))
+        if maximum(abs.(index[i] - index[j])) <= 1 && maximum(abs.(index[k] - index[j])) <=1 && maximum(abs.(index[i] - index[k])) <=1
             push!(tri_index, [index[i], index[j], index[k]])
         end
     end
