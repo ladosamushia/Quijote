@@ -87,12 +87,13 @@ function cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
     Ncubes = length(index)
     println("Ncubes ", Ncubes)
     # All unique cube triplets
-    @threads for i in 1:Ncubes 
-        print(i, " ", threadid(), "*",)
-        for j in i:Ncubes 
-            for k in j:Ncubes
-                # Only keep the neighbours
-                if maximum(abs.(index[i] - index[j])) <= 1 && maximum(abs.(index[k] - index[j])) <=1 && maximum(abs.(index[i] - index[k])) <=1
+    @threads for i1 in 1:Nsub, j1 in i:Nsub, k1 in j:Nsub
+                for i2 in i1-1:i1+1, j2 = j1-1:j1+1, k2 = k1-1:k1+1
+                    if i2 > Nsub 
+                        i2 = 1
+                    elseif i2 = 0
+                        
+                    for i3 in i1-1:i1+1, j3 = j1-1:j1+1, k3 = k1-1:k1+1
                     xyzw1 = xyzw_cube[index[i][1],index[i][2],index[i][3]]
                     xyzw2 = xyzw_cube[index[j][1],index[j][2],index[j][3]]
                     xyzw3 = xyzw_cube[index[k][1],index[k][2],index[k][3]]
