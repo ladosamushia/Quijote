@@ -46,7 +46,7 @@ function tri_bin(xyzw1, xyzw2, xyzw3, dr, rmax, counts)
         end
         for i2 in i2min:length(xyzw2)
             r12 = sqrt(sum((xyzw1[i1][1:3] - xyzw2[i2][1:3]).^2))
-            if r12 >= rmax || r12 == 0
+            if r12 >= rmax || r12 <= 1e-3
                 continue
             end
             if xyzw2 == xyzw3
@@ -56,11 +56,11 @@ function tri_bin(xyzw1, xyzw2, xyzw3, dr, rmax, counts)
             end
             for i3 in i3min:length(xyzw3)
                 r13 = sqrt(sum((xyzw1[i1][1:3] - xyzw3[i3][1:3]).^2))
-                if r13 >= rmax || r13 == 0
+                if r13 >= rmax || r13 <= 1e-3
                     continue
                 end
                 r23 = sqrt(sum((xyzw2[i2][1:3] - xyzw3[i3][1:3]).^2))
-                if r23 >= rmax || r23 == 0
+                if r23 >= rmax || r23 <= 1e-3
                     continue
                 end
                 index = [ceil(Int, r12/dr), ceil(Int, r13/dr), ceil(Int, r23/dr)]
@@ -87,7 +87,12 @@ function cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
     @threads for i1 in 1:Nsub
         for j1 in 1:Nsub
             for k1 in 1:Nsub
-                xyzw1 = xyzw_cube[i1, j1, k1]
+                # Skip empty subcubes
+                if isassigned(xyzw_cube, i1, j1, k1)
+                    xyzw1 = xyzw_cube[i1, j1, k1]
+                else
+                    continue
+                end
                 # All unique pairs of neighbours
                 for index23 in j_n
                     i2, j2, k2 = index23[1] + [i1, j1, k1]
@@ -95,9 +100,14 @@ function cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
                     all_indeces = [i2, j2, k2, i3, j3, k3]
                     # Make sure we are inside the cube
                     if maximum(all_indeces) <=Nsub && minimum(all_indeces) >= 1
-                        xyzw2 = xyzw_cube[i2, j2, k2]
-                        xyzw3 = xyzw_cube[i3, j3, k3]
-                        tri_bin(xyzw1, xyzw2, xyzw3, dr, rmax, counts)
+                        # Skip empty subcubes
+                        if isassigned(xyzw_cube, i2, j2, k2) && isassigned(xyzw_cube, i3, j3, k3)
+                            xyzw2 = xyzw_cube[i2, j2, k2]
+                            xyzw3 = xyzw_cube[i3, j3, k3]
+                            tri_bin(xyzw1, xyzw2, xyzw3, dr, rmax, counts)
+                        else
+                            continue
+                        end
                     end
                 end
             end
@@ -128,12 +138,20 @@ function triplet_counts(Ngal, Lsurvey, xyzw, Lsub, rmin, rmax, Nbin)
     i_xyz = ceil.(Int, (xyzw[1:3,:] .- min_xyz)/Lsub)
     i_xyz[i_xyz .== 0] .= 1
     # Fill in the subcubes
-    for i = 1:Nsub, j = 1:Nsub, k = 1:Nsub
-        xyzw_cube[i, j, k] = [zeros(4),]
-    end
+    # Multiply by a very large number so that it doesn't contribute to triplet
+    # counts
+    # for i = 1:Nsub, j = 1:Nsub, k = 1:Nsub
+        # xyzw_cube[i, j, k] = [100000*ones(4),]
+    # end
     for i in 1:Ngal
-        push!(xyzw_cube[i_xyz[1,i],i_xyz[2,i],i_xyz[3,i]], xyzw[:,i])
+        i1, j1, k1 = i_xyz[:,i]
+        if isassigned(xyzw_cube, i1, j1, k1)
+            push!(xyzw_cube[i1, j1, k1], xyzw[:,i])
+        else
+            xyzw_cube[i1, j1, k1] = [xyzw[:,i],]
+        end
     end
+
     # Count triplets
     println("cube_triplets")
     cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
