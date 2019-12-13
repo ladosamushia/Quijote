@@ -8,6 +8,7 @@ unique_triplet_indeces()
 This function computes unique triplets I could go to from any point.
 """
 function unique_triplet_indeces()
+
     i_n = Array{Int,1}[]
     # Only move forward
     for di in -1:1, dj in -1:1
@@ -25,6 +26,7 @@ function unique_triplet_indeces()
         end
     end
     return j_n
+
 end
 
 """
@@ -138,11 +140,6 @@ function triplet_counts(Ngal, Lsurvey, xyzw, Lsub, rmin, rmax, Nbin)
     i_xyz = ceil.(Int, (xyzw[1:3,:] .- min_xyz)/Lsub)
     i_xyz[i_xyz .== 0] .= 1
     # Fill in the subcubes
-    # Multiply by a very large number so that it doesn't contribute to triplet
-    # counts
-    # for i = 1:Nsub, j = 1:Nsub, k = 1:Nsub
-        # xyzw_cube[i, j, k] = [100000*ones(4),]
-    # end
     for i in 1:Ngal
         i1, j1, k1 = i_xyz[:,i]
         if isassigned(xyzw_cube, i1, j1, k1)
@@ -151,7 +148,6 @@ function triplet_counts(Ngal, Lsurvey, xyzw, Lsub, rmin, rmax, Nbin)
             xyzw_cube[i1, j1, k1] = [xyzw[:,i],]
         end
     end
-
     # Count triplets
     println("cube_triplets")
     cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
@@ -187,4 +183,4 @@ function three_pcf(DDD, DDR, DRR, RRR, Ngal, Nran)
     return tpcf
 end
 
-# test_on_Patchy()
+test_on_Patchy(10,20)
