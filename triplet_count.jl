@@ -38,35 +38,35 @@ dr - bin width, rmax - maximum separation.
 xyzw - an array of x, y, z, and weight.
 """
 
-function tri_bin(xyzw1, xyzw2, xyzw3, dr, rmax, counts)
+function tri_bin(xyz1, xyz2, xyz3, w1, w2, w3, dr, rmax, counts)
     
-    for i1 in 1:length(xyzw1)
-        if xyzw1 == xyzw2
+    for i1 in 1:length(xyz1)
+        if xyz1 == xyz2
             i2min = i1
         else
             i2min = 1
         end
-        for i2 in i2min:length(xyzw2)
-            r12 = sqrt(sum((xyzw1[i1][1:3] - xyzw2[i2][1:3]).^2))
+        for i2 in i2min:length(xyz2)
+            r12 = sqrt(sum((xyz1[i1] - xyz2[i2]).^2))
             if r12 >= rmax || r12 <= 1e-3
                 continue
             end
-            if xyzw2 == xyzw3
+            if xyz2 == xyz3
                 i3min = i2
             else
                 i3min = 1
             end
-            for i3 in i3min:length(xyzw3)
-                r13 = sqrt(sum((xyzw1[i1][1:3] - xyzw3[i3][1:3]).^2))
+            for i3 in i3min:length(xyz3)
+                r13 = sqrt(sum((xyz1[i1] - xyz3[i3]).^2))
                 if r13 >= rmax || r13 <= 1e-3
                     continue
                 end
-                r23 = sqrt(sum((xyzw2[i2][1:3] - xyzw3[i3][1:3]).^2))
+                r23 = sqrt(sum((xyz2[i2] - xyz3[i3]).^2))
                 if r23 >= rmax || r23 <= 1e-3
                     continue
                 end
                 index = [ceil(Int, r12/dr), ceil(Int, r13/dr), ceil(Int, r23/dr)]
-                counts[threadid(),index[1],index[2],index[3]] += xyzw1[i1][4]*xyzw2[i2][4]*xyzw3[i3][4]
+                counts[threadid(),index[1],index[2],index[3]] += w1[i1]*w2[i2]*w3[i3]
                 
             end
         end
@@ -81,7 +81,7 @@ cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
 Triple loop over all subcubes and their immediate neighbours
 """
 
-function cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
+function cube_triplets(xyz_cube, w_cube, Nsub, dr, rmax, counts)
 
     println("start cube_triplets")
     j_n = unique_triplet_indeces()
@@ -90,8 +90,9 @@ function cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
         for j1 in 1:Nsub
             for k1 in 1:Nsub
                 # Skip empty subcubes
-                if isassigned(xyzw_cube, i1, j1, k1)
-                    xyzw1 = xyzw_cube[i1, j1, k1]
+                if isassigned(xyz_cube, i1, j1, k1)
+                    xyz1 = xyz_cube[i1, j1, k1]
+                    w1 = w_cube[i1, j1, k1]
                 else
                     continue
                 end
@@ -103,10 +104,12 @@ function cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
                     # Make sure we are inside the cube
                     if maximum(all_indeces) <=Nsub && minimum(all_indeces) >= 1
                         # Skip empty subcubes
-                        if isassigned(xyzw_cube, i2, j2, k2) && isassigned(xyzw_cube, i3, j3, k3)
-                            xyzw2 = xyzw_cube[i2, j2, k2]
-                            xyzw3 = xyzw_cube[i3, j3, k3]
-                            tri_bin(xyzw1, xyzw2, xyzw3, dr, rmax, counts)
+                        if isassigned(xyz_cube, i2, j2, k2) && isassigned(xyz_cube, i3, j3, k3)
+                            xyz2 = xyz_cube[i2, j2, k2]
+                            w2 = w_cube[i2, j2, k2]
+                            xyz3 = xyz_cube[i3, j3, k3]
+                            w3 = w_cube[i3, j3, k3]
+                            tri_bin(xyz1, xyz2, xyz3, w1, w2, w3, dr, rmax, counts)
                         else
                             continue
                         end
@@ -134,7 +137,8 @@ function triplet_counts(Ngal, Lsurvey, xyzw, Lsub, rmin, rmax, Nbin)
     # Histogram of triplet counts
     counts = zeros(Float32, nthreads(), Nbin, Nbin, Nbin)
     # Fill in the sub-cubes
-    xyzw_cube = Array{Array{Array{Float64,1}}}(undef, Nsub, Nsub, Nsub)
+    xyz_cube = Array{Array{Array{Float64,1}}}(undef, Nsub, Nsub, Nsub)
+    w_cube = Array{Array{Float64,1}}(undef, Nsub, Nsub, Nsub)
     min_xyz = [minimum(xyzw[1,:]), minimum(xyzw[2,:]), minimum(xyzw[3,:])]
     # Subcube indeces for all galaxies
     i_xyz = ceil.(Int, (xyzw[1:3,:] .- min_xyz)/Lsub)
@@ -142,15 +146,17 @@ function triplet_counts(Ngal, Lsurvey, xyzw, Lsub, rmin, rmax, Nbin)
     # Fill in the subcubes
     for i in 1:Ngal
         i1, j1, k1 = i_xyz[:,i]
-        if isassigned(xyzw_cube, i1, j1, k1)
-            push!(xyzw_cube[i1, j1, k1], xyzw[:,i])
+        if isassigned(xyz_cube, i1, j1, k1)
+            push!(xyz_cube[i1, j1, k1], xyzw[1:3,i])
+            push!(w_cube[i1, j1, k1], xyzw[4,i])
         else
-            xyzw_cube[i1, j1, k1] = [xyzw[:,i],]
+            xyz_cube[i1, j1, k1] = [xyzw[1:3,i],]
+            w_cube[i1, j1, k1] = [xyzw[4,i],]
         end
     end
     # Count triplets
     println("cube_triplets")
-    cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
+    cube_triplets(xyz_cube, w_cube, Nsub, dr, rmax, counts)
     # Reduce counts across threads
     counts = sum(counts, dims=1)
     println("sum", sum(counts))
@@ -183,4 +189,4 @@ function three_pcf(DDD, DDR, DRR, RRR, Ngal, Nran)
     return tpcf
 end
 
-test_on_Patchy(10,20)
+test_on_Patchy(1,20)
