@@ -54,6 +54,8 @@ function tri_bin(xyz1, xyz2, xyz3, w1, w2, w3, dr, rmax, counts)
             end
             if xyz2 == xyz3
                 i3min = i2
+            elseif xyz3 == xyz1
+                i3min = i1
             else
                 i3min = 1
             end
