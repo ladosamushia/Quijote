@@ -1,6 +1,7 @@
 using Base.Threads
 using Base.Iterators
 using DelimitedFiles
+using StaticArrays
 
 """
 unique_triplet_indeces()
@@ -137,7 +138,7 @@ function triplet_counts(Ngal, Lsurvey, xyzw, Lsub, rmin, rmax, Nbin)
     # Histogram of triplet counts
     counts = zeros(Float32, nthreads(), Nbin, Nbin, Nbin)
     # Fill in the sub-cubes
-    xyz_cube = Array{Array{Array{Float64,1}}}(undef, Nsub, Nsub, Nsub)
+    xyz_cube = Array{Array{SVector{3,Float64}}}(undef, Nsub, Nsub, Nsub)
     w_cube = Array{Array{Float64,1}}(undef, Nsub, Nsub, Nsub)
     min_xyz = [minimum(xyzw[1,:]), minimum(xyzw[2,:]), minimum(xyzw[3,:])]
     # Subcube indeces for all galaxies
