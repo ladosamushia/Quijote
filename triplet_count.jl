@@ -65,8 +65,8 @@ function tri_bin(xyz1, xyz2, xyz3, w1, w2, w3, dr, rmax, counts)
                 if r23 >= rmax || r23 <= 1e-3
                     continue
                 end
-                index = [ceil(Int, r12/dr), ceil(Int, r13/dr), ceil(Int, r23/dr)]
-                counts[threadid(),index[1],index[2],index[3]] += w1[i1]*w2[i2]*w3[i3]
+                # index = [ceil(Int, r12/dr), ceil(Int, r13/dr), ceil(Int, r23/dr)]
+                counts[threadid(),ceil(Int, r12/dr),ceil(Int, r13/dr),ceil(Int, r23/dr)] += w1[i1]*w2[i2]*w3[i3]
                 
             end
         end
@@ -189,4 +189,4 @@ function three_pcf(DDD, DDR, DRR, RRR, Ngal, Nran)
     return tpcf
 end
 
-test_on_Patchy(1,20)
+# test_on_Patchy(1,20)
