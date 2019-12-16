@@ -2,6 +2,7 @@ using Base.Threads
 using Base.Iterators
 using DelimitedFiles
 using StaticArrays
+using Printf
 
 """
 unique_triplet_indeces()
@@ -68,8 +69,9 @@ function tri_bin(xyz1, xyz2, xyz3, w1, w2, w3, dr, rmax, counts)
                 if r23 >= rmax || r23 <= 1e-3
                     continue
                 end
-                # index = [ceil(Int, r12/dr), ceil(Int, r13/dr), ceil(Int, r23/dr)]
-                counts[threadid(),ceil(Int, r12/dr),ceil(Int, r13/dr),ceil(Int, r23/dr)] += w1[i1]*w2[i2]*w3[i3]
+                index = [ceil(Int, r12/dr), ceil(Int, r13/dr), ceil(Int, r23/dr)]
+                sort!(index)
+                counts[threadid(),index[1],index[2],index[3]] += w1[i1]*w2[i2]*w3[i3]
                 
             end
         end
@@ -134,7 +136,8 @@ Count all triplets.
 function triplet_counts(Ngal, xyz, w, Lsub, rmin, rmax, Nbin)
 
     min_xyz = [minimum(xyz[1,:]), minimum(xyz[2,:]), minimum(xyz[3,:])]
-    Lsurvey = maximum([maximum(xyz[1,:]), minimum(xyz[2,:]), minimum(xyz[3,:])])
+    size_xyz = xyz .- min_xyz
+    Lsurvey = maximum(size_xyz)
     println("Survey size ", Lsurvey)
     # Number of subcubes is Nsub^3
     Nsub = ceil(Int, Lsurvey/Lsub)
@@ -146,9 +149,10 @@ function triplet_counts(Ngal, xyz, w, Lsub, rmin, rmax, Nbin)
     xyz_cube = Array{Array{SVector{3,Float64}}}(undef, Nsub, Nsub, Nsub)
     w_cube = Array{Array{Float64,1}}(undef, Nsub, Nsub, Nsub)
     # Subcube indeces for all galaxies
-    i_xyz = ceil.(Int, (xyz .- min_xyz)/Lsub)
+    i_xyz = ceil.(Int, size_xyz/Lsub)
     i_xyz[i_xyz .== 0] .= 1
     # Fill in the subcubes
+    println(w[5], xyz[:,5])
     for i in 1:Ngal
         i1, j1, k1 = i_xyz[:,i]
         if isassigned(xyz_cube, i1, j1, k1)
@@ -169,9 +173,23 @@ function triplet_counts(Ngal, xyz, w, Lsub, rmin, rmax, Nbin)
 
 end
 
-function triplet_count_Patchy(filname, Lsub, zmin, zmax)
-    println(filename, " ", Lsub, " ", zmin, " ", zmax)
-    patchy = readdlm(filename)
+function write_counts(ofilename, counts, rmin, rmax, Nbin)
+    dr = (rmax - rmin)/Nbin
+    ofile = open(ofilename, "w")
+    for i in 1:Nbin, j in i:Nbin, k in j:Nbin
+        if i + j >= k
+            @printf(ofile, "%lf %lf %lf %lf\n", dr*(i - 0.5), dr*(j - 0.5), dr*(k - 0.5), counts[1,i,j,k])
+        end
+    end
+    close(ofile)
+    return nothing
+end
+        
+
+
+function triplet_count_Patchy(ifilename, ofilename, Lsub, zmin, zmax)
+    println(ifilename, " ", Lsub, " ", zmin, " ", zmax)
+    patchy = readdlm(ifilename)
     xyz = patchy[:,1:3]
     w = patchy[:,4]
     for i in 1:length(w)
@@ -181,9 +199,10 @@ function triplet_count_Patchy(filname, Lsub, zmin, zmax)
     end
     xyz = transpose(xyz)
     w = transpose(w)
-    Ngal = size(w)
+    Ngal = size(w)[2]
     println("Ngal ", Ngal)
-    triplet_counts(Ngal, xyzw, Lsub, 0, 20, 20)
+    counts = triplet_counts(Ngal, xyz, w, Lsub, 0, 20, 20)
+    write_counts(ofilename, counts, 0, 20, 20)
     return nothing
 end
 
