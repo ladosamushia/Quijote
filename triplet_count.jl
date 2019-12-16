@@ -149,6 +149,7 @@ function triplet_counts(Ngal, xyz, w, Lsub, rmin, rmax, Nbin)
     xyz_cube = Array{Array{SVector{3,Float64}}}(undef, Nsub, Nsub, Nsub)
     w_cube = Array{Array{Float64,1}}(undef, Nsub, Nsub, Nsub)
     # Subcube indeces for all galaxies
+    i_xyz = ceil.(Int, size_xyz/Lsub)
     i_xyz[i_xyz .== 0] .= 1
     # Fill in the subcubes
     println(w[5], xyz[:,5])
