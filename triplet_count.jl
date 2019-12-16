@@ -131,30 +131,32 @@ Count all triplets.
 
 
 """
+function triplet_counts(Ngal, xyz, w, Lsub, rmin, rmax, Nbin)
 
-function triplet_counts(Ngal, Lsurvey, xyzw, Lsub, rmin, rmax, Nbin)
-
+    min_xyz = [minimum(xyz[1,:]), minimum(xyz[2,:]), minimum(xyz[3,:])]
+    Lsurvey = maximum([maximum(xyz[1,:]), minimum(xyz[2,:]), minimum(xyz[3,:])])
+    println("Survey size ", Lsurvey)
     # Number of subcubes is Nsub^3
     Nsub = ceil(Int, Lsurvey/Lsub)
+    println("Nsub ", Nsub)
     dr = (rmax - rmin)/Nbin
     # Histogram of triplet counts
     counts = zeros(Float32, nthreads(), Nbin, Nbin, Nbin)
     # Fill in the sub-cubes
     xyz_cube = Array{Array{SVector{3,Float64}}}(undef, Nsub, Nsub, Nsub)
     w_cube = Array{Array{Float64,1}}(undef, Nsub, Nsub, Nsub)
-    min_xyz = [minimum(xyzw[1,:]), minimum(xyzw[2,:]), minimum(xyzw[3,:])]
     # Subcube indeces for all galaxies
-    i_xyz = ceil.(Int, (xyzw[1:3,:] .- min_xyz)/Lsub)
+    i_xyz = ceil.(Int, (xyz .- min_xyz)/Lsub)
     i_xyz[i_xyz .== 0] .= 1
     # Fill in the subcubes
     for i in 1:Ngal
         i1, j1, k1 = i_xyz[:,i]
         if isassigned(xyz_cube, i1, j1, k1)
-            push!(xyz_cube[i1, j1, k1], xyzw[1:3,i])
-            push!(w_cube[i1, j1, k1], xyzw[4,i])
+            push!(xyz_cube[i1, j1, k1], xyz[:,i])
+            push!(w_cube[i1, j1, k1], w[i])
         else
-            xyz_cube[i1, j1, k1] = [xyzw[1:3,i],]
-            w_cube[i1, j1, k1] = [xyzw[4,i],]
+            xyz_cube[i1, j1, k1] = [xyz[:,i],]
+            w_cube[i1, j1, k1] = [w[i],]
         end
     end
     # Count triplets
@@ -167,22 +169,21 @@ function triplet_counts(Ngal, Lsurvey, xyzw, Lsub, rmin, rmax, Nbin)
 
 end
 
-function test_triplet_counts()
-    xyzw = rand(4, 1000000)
-    xyzw[1:3,:] *= 1000
-    triplet_counts(1000000, 1000, xyzw, 20, 0, 20, 20)
-    return nothing
-end
-
-function test_on_Patchy(stride, Lsub)
-    patchy = readdlm("Patchy-Mocks-DR12NGC-COMPSAM_V6C_0001_xyzw.dat")
-    xyzw = patchy[1:stride:end,1:4]
-    xyzw[:,4] .= 1
-    xyzw = transpose(xyzw)
-    Ngal = size(xyzw)[2]
+function triplet_count_Patchy(filname, Lsub, zmin, zmax)
+    println(filename, " ", Lsub, " ", zmin, " ", zmax)
+    patchy = readdlm(filename)
+    xyz = patchy[:,1:3]
+    w = patchy[:,4]
+    for i in 1:length(w)
+        if w[i] != 0
+            w[i] = 1
+        end
+    end
+    xyz = transpose(xyz)
+    w = transpose(w)
+    Ngal = size(w)
     println("Ngal ", Ngal)
-    Lsurvey = 3300.0
-    triplet_counts(Ngal, Lsurvey, xyzw, Lsub, 0, 20, 20)
+    triplet_counts(Ngal, xyzw, Lsub, 0, 20, 20)
     return nothing
 end
 
@@ -191,5 +192,3 @@ function three_pcf(DDD, DDR, DRR, RRR, Ngal, Nran)
     tpcf = (alpha*alpha*alpha*DDD - 3*alpha*alpha*DDR + 3*alpha*DRR - RRR)./RRR
     return tpcf
 end
-
-# test_on_Patchy(1,20)
