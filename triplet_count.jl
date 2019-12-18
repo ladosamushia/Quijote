@@ -11,20 +11,26 @@ This function computes unique triplets I could go to from any point.
 """
 function unique_triplet_indeces()
 
-    i_n = Array{Int,1}[]
+    i_n = zeros(Int, 3, 14)
     # Only move forward
+    counter = 1
     for di in -1:1, dj in -1:1
-        push!(i_n, [di, dj, 1])
+        i_n[:,counter] = [di, dj, 1]
+        counter = counter + 1
         if dj >= di && dj > -1
-            push!(i_n, [di, dj, 0])
+            i_n[:,counter] = [di, dj, 0]
+            counter += 1
         end
     end
+    j_n = zeros(Int, 2, 3, 71)
     # Now triplets
-    j_n = []
-    for i in 1:length(i_n), j in i:length(i_n)
+    counter = 1
+    for i in 1:14, j in i:14
         # Are the two neighbours themselves neighbours?
-        if maximum(abs.(i_n[i] - i_n[j])) <= 1
-            push!(j_n, [i_n[i], i_n[j]])
+        if maximum(abs.(i_n[:,i] - i_n[:,j])) <= 1
+            j_n[1,:,counter] = i_n[:,i]
+            j_n[2,:,counter] = i_n[:,j]
+            counter += 1
         end
     end
     return j_n
@@ -69,9 +75,20 @@ function tri_bin(xyz1, xyz2, xyz3, w1, w2, w3, dr, rmax, counts)
                 if r23 >= rmax || r23 <= 1e-3
                     continue
                 end
-                index = [ceil(Int, r12/dr), ceil(Int, r13/dr), ceil(Int, r23/dr)]
-                sort!(index)
-                counts[threadid(),index[1],index[2],index[3]] += w1[i1]*w2[i2]*w3[i3]
+                i12 = ceil(Int, r12/dr)
+                i13 = ceil(Int, r13/dr)
+                i23 = ceil(Int, r23/dr)
+                # Sorting
+                imin = min(i12, i13, i23)
+                imax = max(i12, i13, i23)
+                if i12 <= max(i13, i23) && i12 >= min(i13, i23)
+                    imid = i12
+                elseif i13 <= max(i12, i23) && i13 >= min(i12, i23)
+                    imid = i13
+                else
+                    imid = i23
+                end
+                counts[threadid(),imin,imid,imax] += w1[i1]*w2[i2]*w3[i3]
                 
             end
         end
@@ -102,12 +119,15 @@ function cube_triplets(xyz_cube, w_cube, Nsub, dr, rmax, counts)
                     continue
                 end
                 # All unique pairs of neighbours
-                for index23 in j_n
-                    i2, j2, k2 = index23[1] + [i1, j1, k1]
-                    i3, j3, k3 = index23[2] + [i1, j1, k1]
-                    all_indeces = [i2, j2, k2, i3, j3, k3]
+                for cc in 1:71
+                    i2 = j_n[1,1,cc] + i1
+                    j2 = j_n[1,2,cc] + j1
+                    k2 = j_n[1,3,cc] + k1
+                    i3 = j_n[2,1,cc] + i1
+                    j3 = j_n[2,2,cc] + j1
+                    k3 = j_n[2,3,cc] + k1
                     # Make sure we are inside the cube
-                    if maximum(all_indeces) <=Nsub && minimum(all_indeces) >= 1
+                    if max(i2, j2, k2, i3, j3, k3) <=Nsub && min(i2, j2, k2, i3, j3, k3) >= 1
                         # Skip empty subcubes
                         if isassigned(xyz_cube, i2, j2, k2) && isassigned(xyz_cube, i3, j3, k3)
                             xyz2 = xyz_cube[i2, j2, k2]
