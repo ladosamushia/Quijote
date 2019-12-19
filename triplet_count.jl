@@ -236,11 +236,13 @@ end
         
 
 
-function triplet_count_Patchy(ifilename, ofilename, Lsub, zmin, zmax)
+function ddd_count_Patchy(ifilename, ofilename, Lsub, rmax, Nbin, zmin, zmax)
     println(ifilename, " ", Lsub, " ", zmin, " ", zmax)
     patchy = readdlm(ifilename)
-    xyz = patchy[:,1:3]
-    w = patchy[:,4]
+    red = patchy[:,5]
+    in_shell = (red .< zmax) .& (red .> zmin)
+    xyz = patchy[in_shell,1:3]
+    w = patchy[in_shell,4]
     for i in 1:length(w)
         if w[i] != 0
             w[i] = 1
@@ -248,9 +250,37 @@ function triplet_count_Patchy(ifilename, ofilename, Lsub, zmin, zmax)
     end
     xyz = transpose(xyz)
     w = transpose(w)
-    Ngal = size(w)[2]
-    println("Ngal ", Ngal)
-    counts = triplet_counts(xyz, xyz, w, w, Lsub, 0, 20, 20)
+    counts = triplet_counts(xyz, xyz, w, w, Lsub, 0, rmax, Nbin)
+    write_counts(ofilename, counts, 0, 20, 20)
+    return nothing
+end
+
+function ddr_count_Patchy(ifilename_d, ifilename_r, ofilename, Lsub, rmax, Nbin, zmin, zmax)
+    patchy = readdlm(ifilename_d)
+    red = patchy[:,5]
+    in_shell = (red .< zmax) .& (red .> zmin)
+    xyz_12 = patchy[in_shell,1:3]
+    w_12 = patchy[in_shell,4]
+    patchy = readdlm(ifilename_r)
+    red = patchy[:,5]
+    in_shell = (red .< zmax) .& (red .> zmin)
+    xyz_3 = patchy[in_shell,1:3]
+    w_3 = patchy[in_shell,4]
+    for i in 1:length(w_12)
+        if w_12[i] != 0
+            w_12[i] = 1
+        end
+    end
+    for i in 1:length(w_3)
+        if w_3[i] != 0
+            w_3[i] = 1
+        end
+    end
+    xyz_12 = transpose(xyz_12)
+    w_12 = transpose(w_12)
+    xyz_3 = transpose(xyz_3)
+    w_3 = transpose(w_3)
+    counts = triplet_counts(xyz_12, xyz_3, w_12, w_3, Lsub, 0, rmax, Nbin)
     write_counts(ofilename, counts, 0, 20, 20)
     return nothing
 end
