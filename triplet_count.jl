@@ -222,12 +222,13 @@ function triplet_counts(xyz_12, xyz_3, w_12, w_3, Lsub, rmin, rmax, Nbin)
 
 end
 
-function write_counts(ofilename, counts, rmin, rmax, Nbin)
+function write_counts(ofilename, counts, rmin, rmax, Nbin, Nwgal)
     dr = (rmax - rmin)/Nbin
     ofile = open(ofilename, "w")
+    @printf(ofile, "# Weighted number of galaxies: %.1lf\n", Nwgal)
     for i in 1:Nbin, j in i:Nbin, k in j:Nbin
         if i + j >= k
-            @printf(ofile, "%lf %lf %lf %lf\n", dr*(i - 0.5), dr*(j - 0.5), dr*(k - 0.5), counts[1,i,j,k])
+            @printf(ofile, "%.1lf %.1lf %.1lf %.1lf\n", dr*(i - 0.5), dr*(j - 0.5), dr*(k - 0.5), counts[1,i,j,k])
         end
     end
     close(ofile)
@@ -248,10 +249,11 @@ function ddd_count_Patchy(ifilename, ofilename, Lsub, rmax, Nbin, zmin, zmax)
             w[i] = 1
         end
     end
+    Nwgal = sum(w)
     xyz = transpose(xyz)
     w = transpose(w)
     counts = triplet_counts(xyz, xyz, w, w, Lsub, 0, rmax, Nbin)
-    write_counts(ofilename, counts, 0, 20, 20)
+    write_counts(ofilename, counts, 0, 20, 20, Nwgal)
     return nothing
 end
 
@@ -281,7 +283,7 @@ function ddr_count_Patchy(ifilename_d, ifilename_r, ofilename, Lsub, rmax, Nbin,
     xyz_3 = transpose(xyz_3)
     w_3 = transpose(w_3)
     counts = triplet_counts(xyz_12, xyz_3, w_12, w_3, Lsub, 0, rmax, Nbin)
-    write_counts(ofilename, counts, 0, 20, 20)
+    write_counts(ofilename, counts, 0, 20, 20, sum(w_12))
     return nothing
 end
 
