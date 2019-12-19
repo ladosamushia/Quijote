@@ -155,8 +155,8 @@ Count all triplets.
 """
 function triplet_counts(xyz_12, xyz_3, w_12, w_3, Lsub, rmin, rmax, Nbin)
 
-    Ngal12 = length(w_12)[2]
-    Ngal3 = length(w_3)[2]
+    Ngal12 = size(w_12)[2]
+    Ngal3 = size(w_3)[2]
     min_xyz_12 = [minimum(xyz_12[1,:]), minimum(xyz_12[2,:]), minimum(xyz_12[3,:])]
     min_xyz_3 = [minimum(xyz_3[1,:]), minimum(xyz_3[2,:]), minimum(xyz_3[3,:])]
     min_xyz = [min(min_xyz_12[1], min_xyz_3[1]), min(min_xyz_12[2], min_xyz_3[2]), min(min_xyz_12[3], min_xyz_3[3])]
@@ -179,10 +179,12 @@ function triplet_counts(xyz_12, xyz_3, w_12, w_3, Lsub, rmin, rmax, Nbin)
         w_cube_3 = Array{Array{Float64,1}}(undef, Nsub, Nsub, Nsub)
     else
         xyz_cube_3 = xyz_cube_12
-        w_cube_3 = w_cube_3
+        w_cube_3 = w_cube_12
     end
     # Subcube indeces for all galaxies
-    i_xyz = ceil.(Int, (xyz_12 - min_xyz)/Lsub)
+    println(size(xyz_12))
+    println(size(min_xyz))
+    i_xyz = ceil.(Int, (xyz_12 .- min_xyz)/Lsub)
     i_xyz[i_xyz .== 0] .= 1
     # Fill in the subcubes
     for i in 1:Ngal12
@@ -196,7 +198,7 @@ function triplet_counts(xyz_12, xyz_3, w_12, w_3, Lsub, rmin, rmax, Nbin)
         end
     end
     if xyz_12 != xyz_3
-        i_xyz = ceil.(Int, (xyz_3 - min_xyz)/Lsub)
+        i_xyz = ceil.(Int, (xyz_3 .- min_xyz)/Lsub)
         i_xyz[i_xyz .== 0] .= 1
         for i in 1:Ngal3
             i1, j1, k1 = i_xyz[:,i]
