@@ -4,12 +4,21 @@ using DelimitedFiles
 using StaticArrays
 using Printf
 
+"""
+    unique_neighbouring_cubes!(i_n)
+
+Return 14 unique neighbours to a subcube in 3D (including itself).
+
+i_n - must be 3x14.
+
+14 (not 27 because I am only moving in one direction to avoid double counting in a loop.
+"""
 function unique_neighbouring_cubes!(i_n)
     # Only move forward
     counter = 1
     for di in -1:1, dj in -1:1
         i_n[:,counter] = [di, dj, 1]
-        counter = counter + 1
+        counter += 1
         if dj >= di && dj > -1
             i_n[:,counter] = [di, dj, 0]
             counter += 1
@@ -19,9 +28,11 @@ function unique_neighbouring_cubes!(i_n)
 end
 
 """
-unique_triplet_indeces()
+    unique_triplet_indeces()
 
-This function computes unique triplets I could go to from any point.
+Computes unique triplets with all subcubes adjasent.
+
+This always returns the same 6x71 array.
 """
 function unique_triplet_indeces()
     i_n = zeros(Int, 3, 14)
@@ -40,6 +51,13 @@ function unique_triplet_indeces()
     return j_n
 end
 
+"""
+    get_triplet_indeces(r12, r13, r23, dr)
+
+Return three integer indeces randked from least to greatest.
+
+Assumes rmin = 0.
+"""
 function get_triplet_indeces(r12, r13, r23, dr) 
     i12 = ceil(Int, r12/dr)
     i13 = ceil(Int, r13/dr)
