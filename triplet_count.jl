@@ -4,14 +4,7 @@ using DelimitedFiles
 using StaticArrays
 using Printf
 
-"""
-unique_triplet_indeces()
-
-This function computes unique triplets I could go to from any point.
-"""
-function unique_triplet_indeces()
-
-    i_n = zeros(Int, 3, 14)
+function unique_neighbouring_cubes!(i_n)
     # Only move forward
     counter = 1
     for di in -1:1, dj in -1:1
@@ -22,6 +15,17 @@ function unique_triplet_indeces()
             counter += 1
         end
     end
+    return nothing
+end
+
+"""
+unique_triplet_indeces()
+
+This function computes unique triplets I could go to from any point.
+"""
+function unique_triplet_indeces()
+    i_n = zeros(Int, 3, 14)
+    unique_neighbouring_cubes!(i_n)
     j_n = zeros(Int, 2, 3, 71)
     # Now triplets
     counter = 1
@@ -34,7 +38,25 @@ function unique_triplet_indeces()
         end
     end
     return j_n
+end
 
+function double_bin(xyz1, xyz2, w1, w2, dr, rmax, counts)
+    for i1 in 1:length(xyz1)
+        if xyz1 == xyz2
+            i2min = i1
+        else
+            i2min = 1
+        end
+        for i2 in i2min:length(xyz2)
+            r12 = sqrt(sum((xyz1[i1] - xyz2[i2]).^2))
+            if r12 >= rmax || r12 <= 1e-3
+                continue
+            end
+            index = ceil(Int, r12/dr)
+            counts[threadid(),index] += w1[i1]*w2[i2]
+        end
+    end
+    return nothing
 end
 
 """
@@ -45,9 +67,7 @@ bin distances between particles in three arrays and incriment histogram in count
 dr - bin width, rmax - maximum separation.
 xyzw - an array of x, y, z, and weight.
 """
-
 function tri_bin(xyz1, xyz2, xyz3, w1, w2, w3, dr, rmax, counts)
-    
     for i1 in 1:length(xyz1)
         if xyz1 == xyz2
             i2min = i1
@@ -94,7 +114,43 @@ function tri_bin(xyz1, xyz2, xyz3, w1, w2, w3, dr, rmax, counts)
         end
     end
     return nothing
+end
 
+function cube_pairs(xyz_cube_1, xyz_cube_2, w_cube_1, w_cube_2, Nsub, dr, rmax, counts)
+    println("start cube_pairs")
+    i_n = zeros(Int, 3, 14)
+    unique_neighbouring_cubes!(i_n)
+    # All subcubes
+    @threads for i1 in 1:Nsub
+        for j1 in 1:Nsub
+            for k1 in 1:Nsub
+                # Skip empty subcubes
+                if isassigned(xyz_cube_1, i1, j1, k1)
+                    xyz1 = xyz_cube_1[i1, j1, k1]
+                    w1 = w_cube_1[i1, j1, k1]
+                else
+                    continue
+                end
+                # All unique pairs of neighbours
+                for cc in 1:14
+                    i2 = j_n[1,1,cc] + i1
+                    j2 = j_n[1,2,cc] + j1
+                    k2 = j_n[1,3,cc] + k1
+                    # Make sure we are inside the cube
+                    if max(i2, j2, k2, i3, j3, k3) <=Nsub && min(i2, j2, k2, i3, j3, k3) >= 1
+                        # Skip empty subcubes
+                        if isassigned(xyz_cube_2, i2, j2, k2)
+                            xyz2 = xyz_cube_2[i2, j2, k2]
+                            w2 = w_cube_2[i2, j2, k2]
+                            double_bin(xyz1, xyz2, w1, w2, dr, rmax, counts)
+                        else
+                            continue
+                        end
+                    end
+                end
+            end
+        end
+    end
 end
 
 """
@@ -102,9 +158,7 @@ cube_triplets(xyzw_cube, Nsub, dr, rmax, counts)
 
 Triple loop over all subcubes and their immediate neighbours
 """
-
 function cube_triplets(xyz_cube_12, xyz_cube_3, w_cube_12, w_cube_3, Nsub, dr, rmax, counts)
-
     println("start cube_triplets")
     j_n = unique_triplet_indeces()
     # All subcubes
@@ -143,18 +197,14 @@ function cube_triplets(xyz_cube_12, xyz_cube_3, w_cube_12, w_cube_3, Nsub, dr, r
             end
         end
     end
-
 end
 
 """
 triplet_counts(Ngal, Lsurvey, xyzw, Lsub, rmin, rmax, Nbin)
 
 Count all triplets.
-
-
 """
 function triplet_counts(xyz_12, xyz_3, w_12, w_3, Lsub, rmin, rmax, Nbin)
-
     Ngal12 = size(w_12)[2]
     Ngal3 = size(w_3)[2]
     min_xyz_12 = [minimum(xyz_12[1,:]), minimum(xyz_12[2,:]), minimum(xyz_12[3,:])]
@@ -219,7 +269,6 @@ function triplet_counts(xyz_12, xyz_3, w_12, w_3, Lsub, rmin, rmax, Nbin)
     counts = sum(counts, dims=1)
     println("sum", sum(counts))
     return counts
-
 end
 
 function write_counts(ofilename, counts, rmin, rmax, Nbin, Nwgal)
@@ -234,8 +283,6 @@ function write_counts(ofilename, counts, rmin, rmax, Nbin, Nwgal)
     close(ofile)
     return nothing
 end
-        
-
 
 function ddd_count_Patchy(ifilename, ofilename, Lsub, rmax, Nbin, zmin, zmax)
     println(ifilename, " ", Lsub, " ", zmin, " ", zmax)
