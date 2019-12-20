@@ -40,6 +40,23 @@ function unique_triplet_indeces()
     return j_n
 end
 
+function get_triplet_indeces(r12, r13, r23, dr) 
+    i12 = ceil(Int, r12/dr)
+    i13 = ceil(Int, r13/dr)
+    i23 = ceil(Int, r23/dr)
+    # Sorting
+    imin = min(i12, i13, i23)
+    imax = max(i12, i13, i23)
+    if i12 <= max(i13, i23) && i12 >= min(i13, i23)
+        imid = i12
+    elseif i13 <= max(i12, i23) && i13 >= min(i12, i23)
+        imid = i13
+    else
+        imid = i23
+    end
+    return imin, imid, imax
+end
+
 function double_bin(xyz1, xyz2, w1, w2, dr, rmax, counts)
     for i1 in 1:length(xyz1)
         if xyz1 == xyz2
@@ -95,19 +112,7 @@ function tri_bin(xyz1, xyz2, xyz3, w1, w2, w3, dr, rmax, counts)
                 if r23 >= rmax || r23 <= 1e-3
                     continue
                 end
-                i12 = ceil(Int, r12/dr)
-                i13 = ceil(Int, r13/dr)
-                i23 = ceil(Int, r23/dr)
-                # Sorting
-                imin = min(i12, i13, i23)
-                imax = max(i12, i13, i23)
-                if i12 <= max(i13, i23) && i12 >= min(i13, i23)
-                    imid = i12
-                elseif i13 <= max(i12, i23) && i13 >= min(i12, i23)
-                    imid = i13
-                else
-                    imid = i23
-                end
+                imin, imid, imax = get_triplet_indeces(r12, r13, r23, dr)
                 counts[threadid(),imin,imid,imax] += w1[i1]*w2[i2]*w3[i3]
                 
             end
@@ -207,12 +212,8 @@ Count all triplets.
 function triplet_counts(xyz_12, xyz_3, w_12, w_3, Lsub, rmin, rmax, Nbin)
     Ngal12 = size(w_12)[2]
     Ngal3 = size(w_3)[2]
-    min_xyz_12 = [minimum(xyz_12[1,:]), minimum(xyz_12[2,:]), minimum(xyz_12[3,:])]
-    min_xyz_3 = [minimum(xyz_3[1,:]), minimum(xyz_3[2,:]), minimum(xyz_3[3,:])]
-    min_xyz = [min(min_xyz_12[1], min_xyz_3[1]), min(min_xyz_12[2], min_xyz_3[2]), min(min_xyz_12[3], min_xyz_3[3])]
-    max_xyz_12 = [maximum(xyz_12[1,:]), maximum(xyz_12[2,:]), maximum(xyz_12[3,:])]
-    max_xyz_3 = [maximum(xyz_3[1,:]), maximum(xyz_3[2,:]), maximum(xyz_3[3,:])]
-    max_xyz = [max(max_xyz_12[1], max_xyz_3[1]), max(max_xyz_12[2], max_xyz_3[2]), max(max_xyz_12[3], max_xyz_3[3])]
+    min_xyz = minimum(hcat(xyz_12, xyz_3), dims=2)
+    max_xyz = maximum(hcat(xyz_12, xyz_3), dims=2)
     Lsurvey = maximum(max_xyz - min_xyz)
     println("Survey size ", Lsurvey)
     # Number of subcubes is Nsub^3
@@ -232,8 +233,6 @@ function triplet_counts(xyz_12, xyz_3, w_12, w_3, Lsub, rmin, rmax, Nbin)
         w_cube_3 = w_cube_12
     end
     # Subcube indeces for all galaxies
-    println(size(xyz_12))
-    println(size(min_xyz))
     i_xyz = ceil.(Int, (xyz_12 .- min_xyz)/Lsub)
     i_xyz[i_xyz .== 0] .= 1
     # Fill in the subcubes
