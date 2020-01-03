@@ -262,7 +262,7 @@ function triplet_counts(xyz_12, xyz_3, w_12, w_3, Lsub, rmin, rmax, Nbin)
     if xyz_12 != xyz_3
         i_xyz = ceil.(Int, (xyz_3 .- min_xyz)/Lsub)
         i_xyz[i_xyz .== 0] .= 1
-        make_cube(xyz_3, w_3, Nsub, i_xyz)
+        xyz_cube_3, w_cube_3 = make_cube(xyz_3, w_3, Nsub, i_xyz)
     else
         xyz_cube_3 = xyz_cube_12
         w_cube_3 = w_cube_12
