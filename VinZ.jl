@@ -34,31 +34,27 @@ function load_snap(snapfile, Ngal)
     return (X, Y, Z, VX, VY, VZ)
 end
 
+function shortest_distance(a, b, L)
+    dist = abs(a - b)
+    if dist > L/2
+        dist == L/2
+    end
+    return dist
+end
+
 function get_vinz(Ngal, X, Y, Z, VZ, distmax, VinZmin, VinZmax, L)
     Vin_bin = zeros(Int32, nthreads(), 100, 200)
-    dx::Float32 = 0.0
-    dy::Float32 = 0.0
-    dz::Float32 = 0.0
     @threads for i in 1:Ngal
         for j in i:Ngal
-            dx = abs(X[i] - X[j])
-            if dx > L/2
-                dx -= L/2
-            end
+            dx = shortest_distance(X[i], X[j], L)
             if dx > distmax
                 continue
             end
-            dy = abs(Y[i] - Y[j])
-            if dy > L/2
-                dy -= L/2
-            end
+            dy = shortest_distance(Y[i], Y[j], L)
             if dy > distmax
                 continue
             end
-            dz = abs(Z[i] - Z[j])
-            if dy > L/2
-                dz -= L/2
-            end
+            dz = shortest_distance(Z[i], Z[j], L)
             if dz > distmax
                 continue
             end
@@ -82,10 +78,12 @@ function main()
     snapfile = "/home/lado/snap_002.0"
     Ngal = 16596561
     X, Y, Z, VX, VY, VZ = load_snap(snapfile, Ngal)
-    X = X[1:100:end]
-    Y = Y[1:100:end]
-    Z = Z[1:100:end]
-    VX = VX[1:100:end]/100
+    X = X[1:1000:end]
+    Y = Y[1:1000:end]
+    Z = Z[1:1000:end]
+    print(typeof(X))
+    print(sizeof(X))
+    VX = VX[1:1000:end]/100
     Vin_bin = get_vinz(size(X)[1], Z, Y, X, VX, 100.0, -25.0, 25.0, 1000.0)
     Vin_bin = sum(Vin_bin, dims=1)
     Vin_bin = reshape(Vin_bin, (100, 200))
