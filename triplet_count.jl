@@ -238,6 +238,39 @@ function make_cube(xyz, w, Nsub, i_xyz)
     return xyz_cube, w_cube
 end
 
+function triplet_counts(xyz_12, xyz_3, w_12, w_3, Lsub, rmin, rmax, Nbin)
+    min_xyz = minimum(hcat(xyz_12, xyz_3), dims=2)
+    max_xyz = maximum(hcat(xyz_12, xyz_3), dims=2)
+    Lsurvey = maximum(max_xyz - min_xyz)
+    println("Survey size ", Lsurvey)
+    # Number of subcubes is Nsub^3
+    Nsub = ceil(Int, Lsurvey/Lsub)
+    println("Nsub ", Nsub)
+    dr = (rmax - rmin)/Nbin
+    # Histogram of triplet counts
+    counts = zeros(Float32, nthreads(), Nbin, Nbin, Nbin)
+    # Subcube indeces for all galaxies
+    i_xyz = ceil.(Int, (xyz_12 .- min_xyz)/Lsub)
+    i_xyz[i_xyz .== 0] .= 1
+    # Fill in the subcubes
+    xyz_cube_12, w_cube_12 = make_cube(xyz_12, w_12, Nsub, i_xyz)
+    if xyz_12 != xyz_3
+        i_xyz = ceil.(Int, (xyz_3 .- min_xyz)/Lsub)
+        i_xyz[i_xyz .== 0] .= 1
+        xyz_cube_3, w_cube_3 = make_cube(xyz_3, w_3, Nsub, i_xyz)
+    else
+        xyz_cube_3 = xyz_cube_12
+        w_cube_3 = w_cube_12
+   end
+    # Count triplets
+    println("cube_triplets")
+    cube_triplets(xyz_cube_12, xyz_cube_3, w_cube_12, w_cube_3, Nsub, dr, rmax, counts)
+    # Reduce counts across threads
+    counts = sum(counts, dims=1)
+    println("sum", sum(counts))
+    return counts
+end
+
 """
 triplet_counts(Ngal, Lsurvey, xyzw, Lsub, rmin, rmax, Nbin)
 
@@ -289,6 +322,26 @@ function write_counts(ofilename, counts, rmin, rmax, Nbin, Nwgal)
     return nothing
 end
 
+function dd_count_Patchy(ifilename, ofilename, Lsub, rmax, Nbin, zmin, zmax)
+    println(ifilename, " ", Lsub, " ", zmin, " ", zmax)
+    patchy = readdlm(ifilename)
+    red = patchy[:,5]
+    in_shell = (red .< zmax) .& (red .> zmin)
+    xyz = patchy[in_shell,1:3]
+    w = patchy[in_shell,4]
+    for i in 1:length(w)
+        if w[i] != 0
+            w[i] = 1
+        end
+    end
+    Nwgal = sum(w)
+    xyz = transpose(xyz)
+    w = transpose(w)
+    counts = pair_counts(xyz, xyz, w, w, Lsub, 0, rmax, Nbin)
+    write_pair_counts(ofilename, counts, 0, rmin, Nbin, Nwgal)
+    return nothing
+end
+
 function ddd_count_Patchy(ifilename, ofilename, Lsub, rmax, Nbin, zmin, zmax)
     println(ifilename, " ", Lsub, " ", zmin, " ", zmax)
     patchy = readdlm(ifilename)
@@ -305,7 +358,7 @@ function ddd_count_Patchy(ifilename, ofilename, Lsub, rmax, Nbin, zmin, zmax)
     xyz = transpose(xyz)
     w = transpose(w)
     counts = triplet_counts(xyz, xyz, w, w, Lsub, 0, rmax, Nbin)
-    write_counts(ofilename, counts, 0, 20, 20, Nwgal)
+    write_counts(ofilename, counts, 0, rmax, Nbin, Nwgal)
     return nothing
 end
 
@@ -335,7 +388,7 @@ function ddr_count_Patchy(ifilename_d, ifilename_r, ofilename, Lsub, rmax, Nbin,
     xyz_3 = transpose(xyz_3)
     w_3 = transpose(w_3)
     counts = triplet_counts(xyz_12, xyz_3, w_12, w_3, Lsub, 0, rmax, Nbin)
-    write_counts(ofilename, counts, 0, 20, 20, sum(w_12))
+    write_counts(ofilename, counts, 0, rmin, Nbin, sum(w_12))
     return nothing
 end
 

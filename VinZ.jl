@@ -1,5 +1,6 @@
 using DelimitedFiles
 using Base.Threads
+using StaticArrays
 
 function read_binary_array(N, file)
     X = Vector{UInt8}(undef, N*4)
@@ -43,7 +44,8 @@ function shortest_distance(a, b, L)
 end
 
 function get_vinz(Ngal, X, Y, Z, VZ, distmax, VinZmin, VinZmax, L)
-    Vin_bin = zeros(Int32, nthreads(), 100, 200)
+    Vin_hist = zeros(Int32, nthreads(), 100, 200)
+    dist_hist = zeros(Int32, nthreads(), 200)
     @threads for i in 1:Ngal
         for j in i:Ngal
             dx = shortest_distance(X[i], X[j], L)
@@ -68,24 +70,27 @@ function get_vinz(Ngal, X, Y, Z, VZ, distmax, VinZmin, VinZmax, L)
                 continue
             end
             VinZ_bin = floor(Int32, VinZ*4.0) + 101
-            Vin_bin[threadid(), dist_bin, VinZ_bin] += 1
+            @inbounds dist_hist[threadid(), dist_bin] += 1
+            @inbounds Vin_hist[threadid(), dist_bin, VinZ_bin] += 1
         end
     end
-    return Vin_bin
+    return Vin_hist, dist_hist
 end
 
 function main()
     snapfile = "/home/lado/snap_002.0"
     Ngal = 16596561
-    X, Y, Z, VX, VY, VZ = load_snap(snapfile, Ngal)
-    X = X[1:1000:end]
-    Y = Y[1:1000:end]
-    Z = Z[1:1000:end]
-    print(typeof(X))
-    print(sizeof(X))
-    VX = VX[1:1000:end]/100
-    Vin_bin = get_vinz(size(X)[1], Z, Y, X, VX, 100.0, -25.0, 25.0, 1000.0)
-    Vin_bin = sum(Vin_bin, dims=1)
-    Vin_bin = reshape(Vin_bin, (100, 200))
-    writedlm("VinZ.csv", Vin_bin)
+    Xall, Yall, Zall, VXall, VYall, VZall = load_snap(snapfile, Ngal)
+    X = Xall[1:10:end]
+    Y = Yall[1:10:end]
+    Z = Zall[1:10:end]
+    println(typeof(X))
+    println(sizeof(X))
+    VX = VX[1:10:end]/100
+    Vin_hist, dist_hist = get_vinz(size(X)[1], Z, Y, X, VX, 100.0, -25.0, 25.0, 1000.0)
+    Vin_hist = sum(Vin_hist, dims=1)
+    dist_hist = sum(dist_hist, dims=1)
+    Vin_hist = reshape(Vin_hist, (100, 200))
+    writedlm("VinZ.csv", Vin_hist)
+    writedlm("dist.csv", dist_hist)
 end
