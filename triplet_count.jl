@@ -76,6 +76,7 @@ function get_triplet_indeces(r12, r13, r23, dr)
 end
 
 function double_bin(xyz1, xyz2, w1, w2, dr, rmax, counts)
+#    println("started double_bin")
     for i1 in 1:length(xyz1)
         if xyz1 == xyz2
             i2min = i1
@@ -103,6 +104,7 @@ dr - bin width, rmax - maximum separation.
 xyzw - an array of x, y, z, and weight.
 """
 function tri_bin(xyz1, xyz2, xyz3, w1, w2, w3, dr, rmax, counts)
+#    println("started tri_bin")
     for i1 in 1:length(xyz1)
         if xyz1 == xyz2
             i2min = i1
@@ -156,11 +158,11 @@ function cube_pairs(xyz_cube_1, xyz_cube_2, w_cube_1, w_cube_2, Nsub, dr, rmax, 
                 end
                 # All unique pairs of neighbours
                 for cc in 1:14
-                    i2 = j_n[1,1,cc] + i1
-                    j2 = j_n[1,2,cc] + j1
-                    k2 = j_n[1,3,cc] + k1
+                    i2 = i_n[1,cc] + i1
+                    j2 = i_n[2,cc] + j1
+                    k2 = i_n[3,cc] + k1
                     # Make sure we are inside the cube
-                    if max(i2, j2, k2, i3, j3, k3) <=Nsub && min(i2, j2, k2, i3, j3, k3) >= 1
+                    if max(i2, j2, k2) <= Nsub && min(i2, j2, k2) >= 1
                         # Skip empty subcubes
                         if isassigned(xyz_cube_2, i2, j2, k2)
                             xyz2 = xyz_cube_2[i2, j2, k2]
@@ -229,10 +231,11 @@ Take xyz, w vectors and place them into a volume with Nsub subcubes of size Lsub
 xyz must be shifted to zero.
 """
 function make_cube(xyz, w, Nsub, Lsub)
+    println("started make_cube")
     xyz_cube = Array{Array{SVector{3,Float64}}}(undef, Nsub, Nsub, Nsub)
     w_cube = Array{Array{Float64,1}}(undef, Nsub, Nsub, Nsub)
     for index in eachindex(w)
-        i, j, k = ceil.(Int, xyz/Lsub)
+        i, j, k = ceil.(Int, xyz[:,index]/Lsub)
         if i == 0 
             i = 1
         end
@@ -259,6 +262,7 @@ write_triplet_counts(ofilename, counts, rmin, rmax, Nbin, Nwgal)
 Write triplet counts to output file.
 """
 function write_triplet_counts(ofilename, counts, rmin, rmax, Nbin, Nwgal)
+    println("started write_triplet_counts")
     dr = (rmax - rmin)/Nbin
     ofile = open(ofilename, "w")
     @printf(ofile, "# Weighted number of galaxies: %.1lf\n", Nwgal)
@@ -277,6 +281,7 @@ write_pair_counts(ofilename, counts, rmin, rmax, Nbin, Nwgal)
 Write pair counts to outpur file.
 """
 function write_pair_counts(ofilename, counts, rmin, rmax, Nbin, Nwgal)
+    println("started write_pari_counts")
     dr = (rmax - rmin)/Nbin
     ofile = open(ofilename, "w")
     @printf(ofile, "# Weighted number of galaxies: %.1lf\n", Nwgal)
@@ -291,6 +296,7 @@ end
 read_Patchy(ifilename, zmin, zmax)
 
 Read x, y, z, and weights from a patchy file between redshifts zmin and zmax.
+This moves galaxies to xyz>=0.
 """
 function read_Patchy(ifilename, zmin, zmax)
     patchy = readdlm(ifilename)
@@ -307,43 +313,52 @@ function read_Patchy(ifilename, zmin, zmax)
     end
     xyz = transpose(xyz)
     w = transpose(w)
+    xyz_min = minimum(xyz, dims=2)
+    println("xyz min: ", xyz_min)
+    xyz = xyz .- xyz_min
     return xyz, w
 end
 
-function process_Patchy(gfile, rfile, Lsub, rmax, Nbin, zmin, zmax, ofile_pair, ofile_triplet)
-    xyz, w = read_Patchy(gfile, zmin, zmax)
-    Nwgal = sum(w)[1]
-    println(Nwgal)
-    xyz_min = min(xyz)
-    println(xyz_min)
-    xyz_max = max(xyz)
-    println(xyz_max)
+function dd_count_Patchy(ifile, ofile, zmin, zmax)
+    xyz, w = read_Patchy(ifile, zmin, zmax)
+    Nw = sum(w)[1]
+    xyz_max = maximum(xyz, dims=2)
     L = maximum(xyz_max - xyz_min)
-    println(L)
-    xyz = xyz .= xyz_min
+    xyz = xyz .- xyz_min
     Nsub = ceil(Int, L/Lsub)
-    println(Nsub)
     dr = rmax/Nbin
-    println(dr)
-    pair_hist = zeros(Nbin)
-    triplet_hist = zeros(Nbin, Nbin, Nbin)
     xyz_cube, w_cube = make_cube(xyz, w, Nsub, Lsub)
+    pair_hist = zeros(nthreads(), Nbin)
     cube_pairs(xyz_cube, xyz_cube, w_cube, w_cube, Nsub, dr, rmax, pair_hist)
-    cube_triplets(xyz_cube, xyz_cube, w_cube, w_cube, Nsub, dr, rmax, triplet_hist)
-    write_pair_counts(ofile_pair, pair_hist, 0, rmax, Nbin, Nwgal)
-    write_triplet_counts(ofile_triplet, triplet_hist, 0, rmax, Nbin, Nwgal)
+    pair_hist = sum(pair_hist, dims=1)
+    write_pair_counts(ofile, pair_hist, 0, rmax, Nbin, Nw)
 end
+
+function dr_count_Patchy(dfile, rfile, ofile, zmin, zmax)
+    xyz_r, w_r = read_Patchy(rfile, zmin, zmax)
+    Nw_r = sum(w_r)[1]
+    xyz_max = maximum(xyz_r, dims=2)
+    L = maximum(xyz_max - xyz_min)
+    xyz_r = xyz_r .- xyz_min
+    Nsub = ceil(Int, L/Lsub)
+    dr = rmax/Nbin
+    xyz_r_cube, w_r_cube = make_cube(xyz_r, w_r, Nsub, Lsub)
+    xyz_d, w_d = read_Patchy(dfile, zmin, zmax)
+    xyz_d = xyz_d .- xyz_min
+    xyz_d_cube, w_d_cube = make_cube(xyz_d, w_d, Nsub, Lsub)
+    pair_hist = zeros(nthreads(), Nbin)
+    cube_pairs(xyz_r_cube, xyz_d_cube, w_r_cube, w_d_cube, Nsub, dr, rmax, pair_hist)
+    pair_hist = sum(pair_hist, dims=1)
+    write_pair_counts(ofile, pair_hist, 0, rmax, Nbin, Nw_r)
+end
+
 """
-function dd_count_Patchy(ifilename, ofilename, Lsub, rmax, Nbin, zmin, zmax)
-    xyz, w = read_Patchy(ifilename, zmin, zmax)
-    Nwgal = sum(Nwgal)[1]
-    L = 
-    Nsub = 
-    dr = 
-    rmax = 
-    counts = 
-    xyz_cube, w_cube = make_cube(xyz, w, Nsub, Lsub)
-    cube_pairs(xyz_cube, xyz_cube, w_cube, w_cube, Nsub, dr, rmax, counts) 
+function count_23(xyz_cube_1, xyz_cube_2, w_cube_1, w_cube_2, Nsub, Nbin, rmax, mode, write)
+    dr = rmax/Nbin
+    if mode == "2pt"
+        pair_hist = zeos(nthreads(), Nbin)
+        cube_pairs(xyz_cube_1, xyz_cube, w_cube, w_cube, Nsub, dr, rmax, pair_hist) 
+        if write == true
     write_pair_counts(ofilename, counts, 0, rmax, Nbin, Nwgal)
     return nothing
 end
