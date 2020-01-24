@@ -347,11 +347,12 @@ function read_Patchy(ifile, zmin, zmax, Lsub)
     println("xyz min: ", xyz_min)
     xyz = xyz .- xyz_min
     xyz_cube, w_cube = make_cube(xyz, w, Nsub, Lsub)
-    return xyz_cube, w_cube
+    Nw = sum(w)[1]
+    return xyz_cube, w_cube, Nw
 end
 
 function dd_count_Patchy(ifile, ofile, zmin, zmax, Lsub, rmax, Nbin)
-    xyz_cube, w_cube = read_Patchy(ifile, zmin, zmax, Lsub)
+    xyz_cube, w_cube, Nw = read_Patchy(ifile, zmin, zmax, Lsub)
     pair_hist = zeros(nthreads(), Nbin)
     cube_pairs(xyz_cube, xyz_cube, w_cube, w_cube, Nsub, dr, rmax, pair_hist)
     pair_hist = sum(pair_hist, dims=1)
