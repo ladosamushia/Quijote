@@ -170,7 +170,7 @@ function tri_bin(xyz1, xyz2, xyz3, w1, w2, w3, dr, rmax, counts)
     return nothing
 end
 
-function cube_pairs(xyz_cube_1, xyz_cube_2, w_cube_1, w_cube_2, Nsub, dr, rmax, counts)
+function cube_pairs(xyz_cube_1, xyz_cube_2, w_cube_1, w_cube_2, Nsub, dr, rmax, histogram, f_bin)
     println("start cube_pairs")
     i_n = zeros(Int, 3, 14)
     unique_neighbouring_cubes!(i_n)
@@ -195,7 +195,7 @@ function cube_pairs(xyz_cube_1, xyz_cube_2, w_cube_1, w_cube_2, Nsub, dr, rmax, 
                     if isassigned(xyz_cube_2, i2, j2, k2)
                         xyz2 = xyz_cube_2[i2, j2, k2]
                         w2 = w_cube_2[i2, j2, k2]
-                        double_bin(xyz1, xyz2, w1, w2, dr, rmax, counts)
+                        f_bin(xyz1, xyz2, w1, w2, dr, rmax, histogram)
                     end
                 end
             end
