@@ -356,36 +356,34 @@ function dd_count_Patchy(ifile, ofile, zmin, zmax, Lsub, rmax, Nbin)
     pair_hist = zeros(nthreads(), Nbin)
     cube_pairs(xyz_cube, xyz_cube, w_cube, w_cube, Nsub, dr, rmax, pair_hist)
     pair_hist = sum(pair_hist, dims=1)
-    Nw = sum(w_cube)
     write_pair_counts(ofile, pair_hist, 0, rmax, Nbin, Nw)
 end
 
 function dr_count_Patchy(dfile, rfile, ofile, zmin, zmax, Lsub, rmax, Nbin)
-    xyz_r_cube, w_r_cube = read_Patchy(rfile, zmin, zmax, Lsub)
-    xyz_d_cube, w_d_cube = read_Patchy(dfile, zmin, zmax, Lsub)
+    xyz_r_cube, w_r_cube, Nr = read_Patchy(rfile, zmin, zmax, Lsub)
+    xyz_d_cube, w_d_cube, Nd = read_Patchy(dfile, zmin, zmax, Lsub)
     pair_hist = zeros(nthreads(), Nbin)
     cube_pairs(xyz_r_cube, xyz_d_cube, w_r_cube, w_d_cube, Nsub, dr, rmax, pair_hist)
     pair_hist = sum(pair_hist, dims=1)
-    write_pair_counts(ofile, pair_hist, 0, rmax, Nbin, 0)
+    write_pair_counts(ofile, pair_hist, 0, rmax, Nbin, Nd)
 end
 
 function ddd_count_Patchy(dfile, rfile, ofile, Lsub, rmax, Nbin, zmin, zmax)
-    xyz_cube, w_cube = read_Patchy(dfile, zmin, zmax, Lsub)
+    xyz_cube, w_cube, Nw = read_Patchy(dfile, zmin, zmax, Lsub)
     triplet_hist = zeros(nthreads(), Nbin, Nbin, Nbin)
     cube_triplets(xyz_cube, xyz_cube, w_cube, w_cube, Nsub, dr, rmax, triplet_hist, tri_bin)
     triplet_hist = sum(triplet_hist, dims=1)
-    Nw = sum(w_cube)
     write_counts(ofilename, triplet_hist, 0, rmax, Nbin, Nw)
     return nothing
 end
 
 function ddr_count_Patchy(dfile, rfile, ofile, Lsub, rmax, Nbin, zmin, zmax)
-    xyz_r_cube, w_r_cube = read_Patchy(rfile, zmin, zmax, Lsub)
-    xyz_d_cube, w_d_cube = read_Patchy(dfile, zmin, zmax, Lsub)
+    xyz_r_cube, w_r_cube, Nr = read_Patchy(rfile, zmin, zmax, Lsub)
+    xyz_d_cube, w_d_cube, Nd = read_Patchy(dfile, zmin, zmax, Lsub)
     triplet_hist = zeros(nthreads(), Nbin, Nbin, Nbin)
     cube_triplets(xyz_d_cube, xyz_r_cube, w_d_cube, w_r_cube, Nsub, dr, rmax, triplet_hist, tri_bin)
     triplet_hist = sum(triplet_hist, dims=1)
-    write_counts(ofile, triplet_hist, 0, rmax, Nbin, 0)
+    write_counts(ofile, triplet_hist, 0, rmax, Nbin, Nd)
     return nothing
 end
 
