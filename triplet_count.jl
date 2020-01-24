@@ -353,29 +353,6 @@ function dr_count_Patchy(dfile, rfile, ofile, zmin, zmax)
 end
 
 """
-function count_23(xyz_cube_1, xyz_cube_2, w_cube_1, w_cube_2, Nsub, Nbin, rmax, mode, write)
-    dr = rmax/Nbin
-    if mode == "2pt"
-        pair_hist = zeos(nthreads(), Nbin)
-        cube_pairs(xyz_cube_1, xyz_cube, w_cube, w_cube, Nsub, dr, rmax, pair_hist) 
-        if write == true
-    write_pair_counts(ofilename, counts, 0, rmax, Nbin, Nwgal)
-    return nothing
-end
-
-function dr_count_Patchy(ifilename_d, ifilename_r, ofilename, Lsub, rmax, Nbin, zmin, zmax)
-    xyz, w = read_Patchy(ifilename, zmin, zmax)
-    Nwgal = 
-    Nsub = 
-    dr = 
-    rmax = 
-    counts = 
-    xyz_cube, w_cube = make_cube(xyz, w, Nsub, Lsub)
-    cube_pairs(xyz_cube, xyz_cube, w_cube, w_cube, Nsub, dr, rmax, counts) 
-    write_pair_counts(ofilename, counts, 0, rmax, Nbin, Nwgal)
-    return nothing
-end
-
 function ddd_count_Patchy(ifilename, ofilename, Lsub, rmax, Nbin, zmin, zmax)
     xyz, w = read_Patchy(ifilename, zmin, zmax)
     Nwgal = 
