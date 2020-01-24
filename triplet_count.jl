@@ -325,8 +325,8 @@ read_Patchy(ifilename, zmin, zmax)
 Read x, y, z, and weights from a patchy file between redshifts zmin and zmax.
 This moves galaxies to xyz>=0.
 """
-function read_Patchy(ifilename, zmin, zmax, Lsub)
-    patchy = readdlm(ifilename)
+function read_Patchy(ifile, zmin, zmax, Lsub)
+    patchy = readdlm(ifile)
     red = patchy[:,5]
     # Redshift selection
     in_shell = (red .< zmax) .& (red .> zmin)
@@ -340,7 +340,7 @@ function read_Patchy(ifilename, zmin, zmax, Lsub)
     end
     xyz = transpose(xyz)
     w = transpose(w)
-    xyz_max = maximum(xyz_r, dims=2)
+    xyz_max = maximum(xyz, dims=2)
     xyz_min = minimum(xyz, dims=2)
     L = maximum(xyz_max - xyz_min)
     Nsub = ceil(Int, L/Lsub)
