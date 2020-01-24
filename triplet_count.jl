@@ -325,7 +325,7 @@ read_Patchy(ifilename, zmin, zmax)
 Read x, y, z, and weights from a patchy file between redshifts zmin and zmax.
 This moves galaxies to xyz>=0.
 """
-function read_Patchy(ifilename, zmin, zmax)
+function read_Patchy(ifilename, zmin, zmax, Lsub)
     patchy = readdlm(ifilename)
     red = patchy[:,5]
     # Redshift selection
@@ -340,75 +340,51 @@ function read_Patchy(ifilename, zmin, zmax)
     end
     xyz = transpose(xyz)
     w = transpose(w)
+    xyz_max = maximum(xyz_r, dims=2)
     xyz_min = minimum(xyz, dims=2)
+    L = maximum(xyz_max - xyz_min)
+    Nsub = ceil(Int, L/Lsub)
     println("xyz min: ", xyz_min)
     xyz = xyz .- xyz_min
-    return xyz, w
+    xyz_cube, w_cube = make_cube(xyz, w, Nsub, Lsub)
+    return xyz_cube, w_cube
 end
 
-function dd_count_Patchy(ifile, ofile, zmin, zmax)
-    xyz, w = read_Patchy(ifile, zmin, zmax)
-    Nw = sum(w)[1]
-    xyz_max = maximum(xyz, dims=2)
-    L = maximum(xyz_max - xyz_min)
-    xyz = xyz .- xyz_min
-    Nsub = ceil(Int, L/Lsub)
-    dr = rmax/Nbin
-    xyz_cube, w_cube = make_cube(xyz, w, Nsub, Lsub)
+function dd_count_Patchy(ifile, ofile, zmin, zmax, Lsub, rmax, Nbin)
+    xyz_cube, w_cube = read_Patchy(ifile, zmin, zmax, Lsub)
     pair_hist = zeros(nthreads(), Nbin)
     cube_pairs(xyz_cube, xyz_cube, w_cube, w_cube, Nsub, dr, rmax, pair_hist)
     pair_hist = sum(pair_hist, dims=1)
+    Nw = sum(w_cube)
     write_pair_counts(ofile, pair_hist, 0, rmax, Nbin, Nw)
 end
 
-function dr_count_Patchy(dfile, rfile, ofile, zmin, zmax)
-    xyz_r, w_r = read_Patchy(rfile, zmin, zmax)
-    Nw_r = sum(w_r)[1]
-    xyz_max = maximum(xyz_r, dims=2)
-    L = maximum(xyz_max - xyz_min)
-    xyz_r = xyz_r .- xyz_min
-    Nsub = ceil(Int, L/Lsub)
-    dr = rmax/Nbin
-    xyz_r_cube, w_r_cube = make_cube(xyz_r, w_r, Nsub, Lsub)
-    xyz_d, w_d = read_Patchy(dfile, zmin, zmax)
-    xyz_d = xyz_d .- xyz_min
-    xyz_d_cube, w_d_cube = make_cube(xyz_d, w_d, Nsub, Lsub)
+function dr_count_Patchy(dfile, rfile, ofile, zmin, zmax, Lsub, rmax, Nbin)
+    xyz_r_cube, w_r_cube = read_Patchy(rfile, zmin, zmax, Lsub)
+    xyz_d_cube, w_d_cube = read_Patchy(dfile, zmin, zmax, Lsub)
     pair_hist = zeros(nthreads(), Nbin)
     cube_pairs(xyz_r_cube, xyz_d_cube, w_r_cube, w_d_cube, Nsub, dr, rmax, pair_hist)
     pair_hist = sum(pair_hist, dims=1)
-    write_pair_counts(ofile, pair_hist, 0, rmax, Nbin, Nw_r)
+    write_pair_counts(ofile, pair_hist, 0, rmax, Nbin, 0)
 end
 
-function ddd_count_Patchy(ifilename, ofilename, Lsub, rmax, Nbin, zmin, zmax)
-    xyz, w = read_Patchy(ifile, zmin, zmax)
-    Nw = sum(w)[1]
-    xyz_max = maximum(xyz, dims=2)
-    L = maximum(xyz_max - xyz_min)
-    xyz = xyz .- xyz_min
-    Nsub = ceil(Int, L/Lsub)
-    dr = rmax/Nbin
-    xyz_cube, w_cube = make_cube(xyz, w, Nsub, Lsub)
+function ddd_count_Patchy(dfile, rfile, ofile, Lsub, rmax, Nbin, zmin, zmax)
+    xyz_cube, w_cube = read_Patchy(dfile, zmin, zmax, Lsub)
     triplet_hist = zeros(nthreads(), Nbin, Nbin, Nbin)
-    cube_triplets(xyz_cube, xyz_cube, w_cube, w_cube, Nsub, dr, rmax, triplet_hist, tri_bin) 
+    cube_triplets(xyz_cube, xyz_cube, w_cube, w_cube, Nsub, dr, rmax, triplet_hist, tri_bin)
+    triplet_hist = sum(triplet_hist, dims=1)
+    Nw = sum(w_cube)
     write_counts(ofilename, triplet_hist, 0, rmax, Nbin, Nw)
     return nothing
 end
 
-function ddr_count_Patchy(ifilename_d, ifilename_r, ofilename, Lsub, rmax, Nbin, zmin, zmax)
-    xyz_r, w_r = read_Patchy(rfile, zmin, zmax)
-    Nw_r = sum(w_r)[1]
-    xyz_max = maximum(xyz_r, dims=2)
-    L = maximum(xyz_max - xyz_min)
-    xyz_r = xyz_r .- xyz_min
-    Nsub = ceil(Int, L/Lsub)
-    dr = rmax/Nbin
-    xyz_r_cube, w_r_cube = make_cube(xyz_r, w_r, Nsub, Lsub)
-    xyz_d, w_d = read_Patchy(dfile, zmin, zmax)
-    xyz_d = xyz_d .- xyz_min
-    xyz_d_cube, w_d_cube = make_cube(xyz_d, w_d, Nsub, Lsub)
-    xyz_r_cube, w_r_cube = make_cube(xyz_r, w_r, Nsub, Lsub)
-    cube_triplets(xyz_d_cube, xyz_r_cube, w_d_cube, w_r_cube, Nsub, dr, rmax, triplet_hist, tri_bin) 
-    write_counts(ofilename, triplet_hist, 0, rmax, Nbin, Nw_r)
+function ddr_count_Patchy(dfile, rfile, ofile, Lsub, rmax, Nbin, zmin, zmax)
+    xyz_r_cube, w_r_cube = read_Patchy(rfile, zmin, zmax, Lsub)
+    xyz_d_cube, w_d_cube = read_Patchy(dfile, zmin, zmax, Lsub)
+    triplet_hist = zeros(nthreads(), Nbin, Nbin, Nbin)
+    cube_triplets(xyz_d_cube, xyz_r_cube, w_d_cube, w_r_cube, Nsub, dr, rmax, triplet_hist, tri_bin)
+    triplet_hist = sum(triplet_hist, dims=1)
+    write_counts(ofile, triplet_hist, 0, rmax, Nbin, 0)
     return nothing
 end
 
