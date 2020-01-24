@@ -75,9 +75,14 @@ function get_triplet_indeces(r12, r13, r23, dr)
     return imin, imid, imax
 end
 
-function double_bin(xyz1, xyz2, w1, w2, dr, rmax, counts)
-#    println("started double_bin")
+"""
+    double_bin(xyz1, xyz2, w1, w2, dr, rmax, histogram)
+
+Weighted histogram of pairs between two arrays.
+"""
+function double_bin(xyz1, xyz2, w1, w2, dr, rmax, histogram)
     for i1 in 1:length(xyz1)
+    # if it is a self count do not double count
         if xyz1 == xyz2
             i2min = i1
         else
@@ -89,14 +94,18 @@ function double_bin(xyz1, xyz2, w1, w2, dr, rmax, counts)
                 continue
             end
             index = ceil(Int, r12/dr)
-            counts[threadid(),index] += w1[i1]*w2[i2]
+            histogram[threadid(),index] += w1[i1]*w2[i2]
         end
     end
     return nothing
 end
 
+"""
+    vin_bin(xyz1, xyz2, v1, v2, dr, rmax, histogram)
+
+Weighted histogram of infall velocities.
+"""
 function vin_bin(xyz1, xyz2, v1, v2, dr, rmax, histogram)
-#    println("started double_bin")
     for i1 in 1:length(xyz1)
         if xyz1 == xyz2
             i2min = i1
@@ -125,14 +134,11 @@ function vin_bin(xyz1, xyz2, v1, v2, dr, rmax, histogram)
 end
 
 """
-tri_bin(xyzw1, xyzw2, xyzw3, dr, rmax, counts)
+    tri_bin(xyz1, xyz2, xyz3, w1, w2, w3, dr, rmax, histogram)
 
 bin distances between particles in three arrays and incriment histogram in counts.
-
-dr - bin width, rmax - maximum separation.
-xyzw - an array of x, y, z, and weight.
 """
-function tri_bin(xyz1, xyz2, xyz3, w1, w2, w3, dr, rmax, counts)
+function tri_bin(xyz1, xyz2, xyz3, w1, w2, w3, dr, rmax, histogram)
 #    println("started tri_bin")
     for i1 in 1:length(xyz1)
         if xyz1 == xyz2
@@ -162,8 +168,7 @@ function tri_bin(xyz1, xyz2, xyz3, w1, w2, w3, dr, rmax, counts)
                     continue
                 end
                 imin, imid, imax = get_triplet_indeces(r12, r13, r23, dr)
-                counts[threadid(),imin,imid,imax] += w1[i1]*w2[i2]*w3[i3]
-                
+                histogram[threadid(),imin,imid,imax] += w1[i1]*w2[i2]*w3[i3]
             end
         end
     end
