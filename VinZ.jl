@@ -1,6 +1,7 @@
 using DelimitedFiles
 using Base.Threads
 using StaticArrays
+using CUDAdrv, CUDAnative, CuArrays
 
 function read_binary_array(N, file)
     X = Vector{UInt8}(undef, N*4)
@@ -43,10 +44,10 @@ function shortest_distance(a, b, L)
     return dist
 end
 
-function get_vinz(Ngal, X, Y, Z, VZ, distmax, VinZmin, VinZmax, L)
-    Vin_hist = zeros(Int32, nthreads(), 100, 200)
-    dist_hist = zeros(Int32, nthreads(), 200)
-    @threads for i in 1:Ngal
+function get_vinz(Ngal, X, Y, Z, VZ, distmax, VinZmin, VinZmax, L, Vin_hist, dist_hist)
+    index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+    stride = blockDim().x * gridDim().x
+    for i in index:stride:Ngal
         for j in i:Ngal
             dx = shortest_distance(X[i], X[j], L)
             if dx > distmax
@@ -70,27 +71,35 @@ function get_vinz(Ngal, X, Y, Z, VZ, distmax, VinZmin, VinZmax, L)
                 continue
             end
             VinZ_bin = floor(Int32, VinZ*4.0) + 101
-            @inbounds dist_hist[threadid(), dist_bin] += 1
-            @inbounds Vin_hist[threadid(), dist_bin, VinZ_bin] += 1
+            dist_hist[threadIdx().x, dist_bin] += 1
+            Vin_hist[threadIdx().x, dist_bin, VinZ_bin] += 1
         end
     end
-    return Vin_hist, dist_hist
+    return 
 end
 
 function main()
     snapfile = "/home/lado/snap_002.0"
     Ngal = 16596561
     Xall, Yall, Zall, VXall, VYall, VZall = load_snap(snapfile, Ngal)
-    X = Xall[1:10:end]
-    Y = Yall[1:10:end]
-    Z = Zall[1:10:end]
+    X = CuArray(Xall[1:10:end])
+    Y = CuArray(Yall[1:10:end])
+    Z = CuArray(Zall[1:10:end])
     println(typeof(X))
     println(sizeof(X))
-    VX = VX[1:10:end]/100
-    Vin_hist, dist_hist = get_vinz(size(X)[1], Z, Y, X, VX, 100.0, -25.0, 25.0, 1000.0)
+    VX = CuArray(VXall[1:10:end]/100)
+    Vin_hist = zeros(Int32, 512, 100, 200)
+    dist_hist = zeros(Int32, 512, 200)
+    Vin_hist = CuArray(Vin_hist)
+    dist_hist = CuArray(dist_hist)
+    @cuda threads=512 blocks=256 get_vinz(size(X)[1], Z, Y, X, VX, 100.0, -25.0, 25.0, 1000.0, Vin_hist, dist_hist)
+    Vin_hist = Array(Vin_hist)
+    dist_hist = Array(dist_hist)
     Vin_hist = sum(Vin_hist, dims=1)
     dist_hist = sum(dist_hist, dims=1)
     Vin_hist = reshape(Vin_hist, (100, 200))
     writedlm("VinZ.csv", Vin_hist)
     writedlm("dist.csv", dist_hist)
 end
+
+main()
