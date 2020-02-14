@@ -86,7 +86,7 @@ function main()
     Z = Zall[1:10:end]
     println(typeof(X))
     println(sizeof(X))
-    VX = VX[1:10:end]/100
+    VX = VXall[1:10:end]/100
     Vin_hist, dist_hist = get_vinz(size(X)[1], Z, Y, X, VX, 100.0, -25.0, 25.0, 1000.0)
     Vin_hist = sum(Vin_hist, dims=1)
     dist_hist = sum(dist_hist, dims=1)
@@ -94,3 +94,5 @@ function main()
     writedlm("VinZ.csv", Vin_hist)
     writedlm("dist.csv", dist_hist)
 end
+
+main()
