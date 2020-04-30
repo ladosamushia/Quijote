@@ -1,8 +1,5 @@
 using Base.Threads
-using Base.Iterators
-using DelimitedFiles
 using StaticArrays
-using Printf
 include("geometry.jl")
 include("io.jl")
 include("cubing.jl")
@@ -13,9 +10,9 @@ include("cubing.jl")
 Weighted histogram of pairs distances between two points.
 """
 function distance_bin(xyz1, xyz2, w1, w2, dr, histogram)
-    r12 = sqrt(sum((xyz1[i1] - xyz2[i2]).^2))
+    r12 = sqrt(sum((xyz1 - xyz2).^2))
     index = ceil(Int, r12/dr)
-    histogram[threadid(),index] += w1[i1]*w2[i2]
+    histogram[threadid(),index] += w1*w2
     return nothing
 end
 
@@ -27,7 +24,7 @@ Weighted histogram of angular distances.
 function wp_bin(xyz1, xyz2, w1, w2, dr, histogram)
     r12 = sqrt(sum((xyz1[1:2] - xyz2[1:2]).^2))
     index = ceil(Int, r12/dr)
-    histogram[threadid(),index] += w1[i1]*w2[i2]
+    histogram[threadid(),index] += w1*w2
     return nothing
 end
 
@@ -36,12 +33,16 @@ end
 
 Weighted histogram of angular distances but accounting for varying LOS.
 """
-function wp_bin(xyz1, xyz2, w1, w2, dr, histogram)
+function wp_survey_bin(xyz1, xyz2, w1, w2, dr, histogram)
     r1 = sqrt(sum(xyz1.^2))
     r2 = sqrt(sum(xyz2.^2))
-    r12 = sqrt(sum((xyz2*r1/r2 - xyz1).^2))
+    if r2 > r1
+        r12 = sqrt(sum((xyz2*r1/r2 - xyz1).^2))
+    else
+        r12 = sqrt(sum((xyz1*r2/r1 - xyz2).^2))
+    end
     index = ceil(Int, r12/dr)
-    histogram[threadid(),index] += w1[i1]*w2[i2]
+    histogram[threadid(),index] += w1*w2
     return nothing
 end
 
@@ -51,7 +52,7 @@ end
 Weighted histogram of infall velocities.
 """
 function vin_bin(xyz1, xyz2, v1, v2, dr, histogram)
-    r12 = sqrt(sum((xyz1[i1] - xyz2[i2]).^2))
+    r12 = sqrt(sum((xyz1 - xyz2).^2))
     if xyz1[3] < xyz2[3]
         v12 = v1 - v2
     else
@@ -59,7 +60,7 @@ function vin_bin(xyz1, xyz2, v1, v2, dr, histogram)
     end
     index_v = ceil(Int, (v12 + 51)/100)
     if index_v < 1 || v12 > 100
-        continue
+        return nothing
     end
     index_r = ceil(Int, r12/dr)
     histogram[threadid(),index_r,index_v] += 1
@@ -70,9 +71,8 @@ end
     tri_bin(xyz1, xyz2, xyz3, w1, w2, w3, dr, rmax, histogram)
 
 bin distances between particles in three arrays and incriment histogram in counts.
-"""
+"""   
 function tri_bin(xyz1, xyz2, xyz3, w1, w2, w3, dr, rmax, histogram)
-#    println("started tri_bin")
     for i1 in 1:length(xyz1)
         if xyz1 == xyz2
             i2min = i1
@@ -107,3 +107,4 @@ function tri_bin(xyz1, xyz2, xyz3, w1, w2, w3, dr, rmax, histogram)
     end
     return nothing
 end
+
