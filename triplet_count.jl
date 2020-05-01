@@ -5,7 +5,7 @@ include("io.jl")
 include("cubing.jl")
 
 """
-    distance_bin(xyz1, xyz2, w1, w2, histogram)
+    distance_bin(xyz1, xyz2, w1, w2, dr, histogram)
 
 Weighted histogram of pairs distances between two points.
 """
@@ -17,7 +17,7 @@ function distance_bin(xyz1, xyz2, w1, w2, dr, histogram)
 end
 
 """
-    wp_bin(xyz1, xyz2, w1, w2, histogram)
+    wp_bin(xyz1, xyz2, w1, w2, dr, histogram)
 
 Weighted histogram of angular distances.
 """
@@ -29,7 +29,7 @@ function wp_bin(xyz1, xyz2, w1, w2, dr, histogram)
 end
 
 """
-    wp_survey_bin(xyz1, xyz2, w1, w2, histogram)
+    wp_survey_bin(xyz1, xyz2, w1, w2, dr, histogram)
 
 Weighted histogram of angular distances but accounting for varying LOS.
 """
@@ -47,7 +47,7 @@ function wp_survey_bin(xyz1, xyz2, w1, w2, dr, histogram)
 end
 
 """
-    vin_bin(xyz1, xyz2, v1, v2, dr, rmax, histogram)
+    vin_bin(xyz1, xyz2, v1, v2, dr, histogram)
 
 Weighted histogram of infall velocities.
 """
@@ -71,7 +71,7 @@ end
     tri_bin(xyz1, xyz2, xyz3, w1, w2, w3, dr, rmax, histogram)
 
 bin distances between particles in three arrays and incriment histogram in counts.
-"""   
+"""
 function tri_bin(xyz1, xyz2, xyz3, w1, w2, w3, dr, rmax, histogram)
     for i1 in 1:length(xyz1)
         if xyz1 == xyz2
@@ -107,4 +107,3 @@ function tri_bin(xyz1, xyz2, xyz3, w1, w2, w3, dr, rmax, histogram)
     end
     return nothing
 end
-
